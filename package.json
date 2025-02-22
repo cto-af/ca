@@ -1,0 +1,45 @@
+{
+  "name": "@cto.af/ca",
+  "version": "0.0.0",
+  "decription": "",
+  "main": "lib/index.js",
+  "files": [
+    "lib/*"
+  ],
+  "type": "module",
+  "keywords": [],
+  "author": "Joe Hildebrand <joe-github@cursive.net>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cto-af/ca.git"
+  },
+  "homepage": "https://github.com/cto-af/ca#readme",
+  "bugs": {
+    "url": "https://github.com/cto-af/ca/issues"
+  },
+  "scripts": {
+    "clean": "rm -rf coverage docs lib",
+    "lint": "eslint .",
+    "pretest": "tsup --inlineSourceMap",
+    "test": "c8 node --test",
+    "posttest": "tsup --silent",
+    "docs": "typedoc",
+    "ts": "tsup",
+    "build": "npm run test && npm run lint && npm run docs && npm pack --dry-run"
+  },
+  "devDependencies": {
+    "@cto.af/eslint-config": "5.1.11",
+    "c8": "10.1.3",
+    "eslint-plugin-jsdoc": "50.6.3",
+    "eslint-plugin-markdown": "5.1.0",
+    "tsup": "8.3.6",
+    "typedoc": "0.27.8",
+    "typescript": "5.7.3",
+    "typescript-eslint": "8.24.1"
+  },
+  "packageManager": "pnpm@10.4.1",
+  "engines": {
+    "node": ">=18.7"
+  }
+}
