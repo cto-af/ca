@@ -21,7 +21,7 @@
   "scripts": {
     "clean": "rm -rf coverage docs lib",
     "lint": "eslint .",
-    "pretest": "tsup --inlineSourceMap",
+    "pretest": "tsup --sourcemap inline",
     "test": "c8 node --test",
     "posttest": "tsup --silent",
     "docs": "typedoc",
