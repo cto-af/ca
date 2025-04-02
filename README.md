@@ -30,7 +30,9 @@ import {createServer} from 'node:tls';
 const {key, cert} = await createCert({
   host: 'foo.local', // Default: 'localhost'
 });
-const server = createServer({key, cert}, () => ...);
+const server = createServer({key, cert}, () => {
+  // Handle connection
+});
 ```
 
 ### CLI

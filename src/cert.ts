@@ -15,6 +15,8 @@ export class KeyCert {
   public readonly notAfter: Date;
   public readonly subject: string;
   public readonly issuer: string;
+  public readonly serial: string;
+  public readonly issuerSerial: string | undefined;
   public readonly ca: KeyCert | undefined;
 
   public constructor(
@@ -34,6 +36,8 @@ export class KeyCert {
     this.subject = x.getSubjectString();
     this.issuer = x.getIssuerString();
     this.ca = ca;
+    this.serial = x.getSerialNumberHex();
+    this.issuerSerial = x.getExtAuthorityKeyIdentifier()?.sn?.hex;
   }
 
   public static async read(

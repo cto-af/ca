@@ -57,7 +57,7 @@ export async function createCA(options: CertOptions): Promise<KeyCert> {
   opts.certDir = opts.caDir;
 
   const ca_file = filenamify(opts.caSubject);
-  if (!options.forceCA) {
+  if (!opts.forceCA) {
     const pair = await KeyCert.read(opts, ca_file);
     if (pair) {
       return pair; // Still valid.
@@ -116,14 +116,15 @@ export async function createCert(
   const log = setLog(opts);
 
   const ca = await createCA(opts);
-  const pair = await KeyCert.read(opts, opts.host);
-  if (pair) {
-    if (pair.issuer !== ca.subject) {
-      log.warn('Invalid CA subject "%s" != "%s".', pair.issuer, ca.subject);
-    } else if (pair.notAfter.getTime() > ca.notAfter.getTime()) {
-      log.warn('CA no longer valid: %s > %s', pair.notAfter, ca.notAfter);
-    } else {
-      return pair; // Still valid.
+  if (!opts.forceCert) {
+    const pair = await KeyCert.read(opts, opts.host);
+    if (pair) {
+      if (pair.issuer !== ca.subject) {
+        log.warn('Invalid CA subject "%s" != "%s".', pair.issuer, ca.subject);
+      } else if (pair.issuerSerial === ca.serial) {
+        return pair; // Still valid.
+      }
+      log.warn('CA no longer valid: %s != %s', pair.issuerSerial, ca.serial);
     }
   }
 
@@ -149,6 +150,7 @@ export async function createCert(
       {extname: 'basicConstraints', cA: false},
       {extname: 'keyUsage', critical: true, names: ['digitalSignature']},
       {extname: 'subjectAltName', array: [{dns: opts.host}]},
+      {extname: 'authorityKeyIdentifier', sn: {hex: ca.serial}},
     ],
     sigalg: 'SHA256withECDSA',
     cakey: ca.key,
