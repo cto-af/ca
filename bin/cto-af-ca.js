@@ -60,7 +60,7 @@ program
   .description('Show directory for certs')
   .action((_, cmd) => {
     const args = getOpts(cmd);
-    console.log(args.certDir);
+    console.log(args.caDir);
   });
 
 program
