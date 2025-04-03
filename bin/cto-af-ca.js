@@ -86,7 +86,7 @@ program
   .description('Remove a CA cert by subject')
   .action(async(subject, _, cmd) => {
     const args = getOpts(cmd);
-    const fn = path.join(args.certDir, filenamify(subject));
+    const fn = path.join(args.caDir, filenamify(subject));
     await fs.rm(`${fn}.cert.pem`);
     await fs.rm(`${fn}.key.pem`);
   });
