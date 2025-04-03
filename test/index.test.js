@@ -5,8 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-const certDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hostlocal-test-cert-'));
-const ISSUER = '/CN=github.hildjj.hostlocal';
+const certDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cto-af-test-cert-'));
+const ISSUER = '/CN=github.cto-af.ca';
 test.after(async() => {
   await fs.rm(certDir, {recursive: true, force: true});
 });

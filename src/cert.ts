@@ -6,17 +6,17 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import rs from 'jsrsasign';
 
-const KEYCHAIN_SERVICE = 'com.github.hildjj.HostLocal';
+const KEYCHAIN_SERVICE = 'com.github.cto-af.ca';
 
 export class KeyCert {
   public readonly name: string;
   public readonly key: string;
   public readonly cert: string;
   public readonly notAfter: Date;
+  public readonly notBefore: Date;
   public readonly subject: string;
   public readonly issuer: string;
   public readonly serial: string;
-  public readonly issuerSerial: string | undefined;
   public readonly ca: KeyCert | undefined;
 
   public constructor(
@@ -33,11 +33,11 @@ export class KeyCert {
     const x = new rs.X509();
     x.readCertPEM(this.cert);
     this.notAfter = rs.zulutodate(x.getNotAfter());
+    this.notBefore = rs.zulutodate(x.getNotBefore());
     this.subject = x.getSubjectString();
     this.issuer = x.getIssuerString();
     this.ca = ca;
     this.serial = x.getSerialNumberHex();
-    this.issuerSerial = x.getExtAuthorityKeyIdentifier()?.sn?.hex;
   }
 
   public static async read(
