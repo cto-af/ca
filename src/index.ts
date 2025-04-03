@@ -7,7 +7,7 @@ import filenamify from 'filenamify';
 import path from 'node:path';
 import rs from 'jsrsasign';
 
-const CA_SUBJECT = '/C=US/ST=Colorado/L=Denver/O=_HostLocal/CN=HostLocal-Root-CA';
+const CA_SUBJECT = '/C=US/ST=Colorado/L=Denver/O=@cto.af/CN=cto-af-Root-CA';
 const APP_NAME = '@cto.af/ca';
 const {config} = envPaths(APP_NAME);
 
@@ -121,10 +121,10 @@ export async function createCert(
     if (pair) {
       if (pair.issuer !== ca.subject) {
         log.warn('Invalid CA subject "%s" != "%s".', pair.issuer, ca.subject);
-      } else if (pair.issuerSerial === ca.serial) {
+      } else if (pair.notBefore.getTime() >= ca.notBefore.getTime()) {
         return pair; // Still valid.
       }
-      log.warn('CA no longer valid: %s != %s', pair.issuerSerial, ca.serial);
+      log.warn('CA no longer valid: %s < %s', pair.notBefore.toISOString(), ca.notBefore.toISOString());
     }
   }
 
@@ -150,7 +150,6 @@ export async function createCert(
       {extname: 'basicConstraints', cA: false},
       {extname: 'keyUsage', critical: true, names: ['digitalSignature']},
       {extname: 'subjectAltName', array: [{dns: opts.host}]},
-      {extname: 'authorityKeyIdentifier', sn: {hex: ca.serial}},
     ],
     sigalg: 'SHA256withECDSA',
     cakey: ca.key,
