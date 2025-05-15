@@ -10,7 +10,7 @@ const KEYCHAIN_SERVICE = 'com.github.cto-af.ca';
 
 export class KeyCert {
   public readonly name: string;
-  public readonly key: string;
+  public readonly key: string | undefined = undefined;
   public readonly cert: string;
   public readonly notAfter: Date;
   public readonly notBefore: Date;
@@ -21,14 +21,16 @@ export class KeyCert {
 
   public constructor(
     name: string,
-    key: AnyKey | string,
+    key: AnyKey | string | undefined,
     cert: rs.KJUR.asn1.x509.Certificate | string,
     ca?: KeyCert
   ) {
     this.name = name;
-    this.key = (typeof key === 'string') ?
-      key :
-      rs.KEYUTIL.getPEM(key, 'PKCS8PRV');
+    if (key) {
+      this.key = (typeof key === 'string') ?
+        key :
+        rs.KEYUTIL.getPEM(key, 'PKCS8PRV');
+    }
     this.cert = (typeof cert === 'string') ? cert : cert.getPEM();
     const x = new rs.X509();
     x.readCertPEM(this.cert);
@@ -46,7 +48,9 @@ export class KeyCert {
   ): Promise<KeyCert | null> {
     try {
       const names = this.#getNames(opts, name);
-      const key = await getSecret(opts, KEYCHAIN_SERVICE, names.keyName);
+      const key = opts.noKey ?
+        undefined :
+        await getSecret(opts, KEYCHAIN_SERVICE, names.keyName);
       const cert = await fs.readFile(names.certName, 'utf8');
       const kc = new KeyCert(name, key, cert);
       // If the server can't run for at least a day, create new certs.
@@ -84,7 +88,9 @@ export class KeyCert {
   public async write(opts: RequiredCertOptions): Promise<void> {
     const names = KeyCert.#getNames(opts, this.name);
     await fs.mkdir(names.certDir, {recursive: true});
-    await setSecret(opts, KEYCHAIN_SERVICE, names.keyName, this.key);
+    if (this.key) {
+      await setSecret(opts, KEYCHAIN_SERVICE, names.keyName, this.key);
+    }
     await fs.writeFile(names.certName, this.cert, 'utf8');
   }
 }

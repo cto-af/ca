@@ -46,6 +46,11 @@ export interface CertOptions {
    * Already have a log file?
    */
   log?: Logger | null;
+
+  /**
+   * If true, do not read the key.
+   */
+  noKey?: boolean;
 }
 
 export type RequiredCertOptions = Required<CertOptions>;

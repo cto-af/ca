@@ -1,5 +1,5 @@
+import {createCA, createCert} from '../lib/index.js';
 import assert from 'node:assert';
-import {createCert} from '../lib/index.js';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -58,6 +58,18 @@ test('createCert', async() => {
   // eslint-disable-next-line require-atomic-updates
   opts.minRunDays = 7;
   await assert.doesNotReject(() => createCert(opts));
+
+  const caNoKey = await createCA({
+    ...opts,
+    noKey: true,
+  });
+
+  assert.equal(caNoKey.key, undefined);
+  await assert.rejects(() => createCert({
+    ...opts,
+    noKey: true,
+    forceCert: true,
+  }));
 
   await kc.delete(opts);
   // eslint-disable-next-line require-atomic-updates
