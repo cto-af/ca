@@ -32,6 +32,7 @@ export const DEFAULT_CERT_OPTIONS: RequiredCertOptions = {
   logLevel: 0,
   logFile: null,
   log: null,
+  noKey: false,
 };
 
 function setLog(opts: CertOptions): Logger {
@@ -137,6 +138,10 @@ export async function createCert(
   const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
   const prv = kp.prvKeyObj;
   const pub = kp.pubKeyObj;
+
+  if (!ca.key) {
+    throw new Error('Key required');
+  }
 
   const x = new rs.KJUR.asn1.x509.Certificate({
     version: 3,
