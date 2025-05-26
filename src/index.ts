@@ -118,7 +118,7 @@ export async function createCert(
 
   const ca = await createCA(opts);
   if (!opts.forceCert) {
-    const pair = await KeyCert.read(opts, opts.host);
+    const pair = await KeyCert.read(opts, opts.host, ca);
     if (pair) {
       if (pair.issuer !== ca.subject) {
         log.warn('Invalid CA subject "%s" != "%s".', pair.issuer, ca.subject);

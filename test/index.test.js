@@ -38,6 +38,7 @@ test('createCert', async() => {
   assert.equal(key, cached.key);
   assert.equal(cert, cached.cert);
   assert.deepEqual(notAfter, cached.notAfter);
+  assert.deepEqual(ca.cert, cached.ca.cert);
 
   // Check what happens when the CA subject is wrong.
   const ISSUER2 = `${ISSUER}2`;
