@@ -44,7 +44,8 @@ export class KeyCert {
 
   public static async read(
     opts: RequiredCertOptions,
-    name: string
+    name: string,
+    ca?: KeyCert
   ): Promise<KeyCert | null> {
     try {
       const names = this.#getNames(opts, name);
@@ -52,7 +53,7 @@ export class KeyCert {
         undefined :
         await getSecret(opts, KEYCHAIN_SERVICE, names.keyName);
       const cert = await fs.readFile(names.certName, 'utf8');
-      const kc = new KeyCert(name, key, cert);
+      const kc = new KeyCert(name, key, cert, ca);
       // If the server can't run for at least a day, create new certs.
       if (kc.notAfter < daysFromNow(opts.minRunDays)) {
         return null;
