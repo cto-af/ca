@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable no-console */
 import {DEFAULT_CERT_OPTIONS, KeyCert, createCA, createCert} from '../lib/index.js';
 import {Command} from 'commander';
 import filenamify from 'filenamify';
