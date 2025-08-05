@@ -35,7 +35,7 @@ program
   .option('-f,--force', 'Always create a new certificate')
   .option('-H,--host <HOSTNAME>', 'Hostname for the certificate', DEFAULT_CERT_OPTIONS.host)
   .option('-s,--subject <SUBJECT>', 'Subject for the CA cert', DEFAULT_CERT_OPTIONS.caSubject)
-  .action(async(_, cmd) => {
+  .action(async (_, cmd) => {
     const args = getOpts(cmd);
     args.forceCert = Boolean(args.force);
     const kc = await createCert(args);
@@ -47,7 +47,7 @@ program
   .description('Create a CA certificate')
   .option('-f,--force', 'Always create a new CA certificate')
   .option('-s,--subject <SUBJECT>', 'Subject for the CA cert', DEFAULT_CERT_OPTIONS.caSubject)
-  .action(async(_, cmd) => {
+  .action(async (_, cmd) => {
     const args = getOpts(cmd);
     args.forceCA = Boolean(args.force);
     const kc = await createCA(args);
@@ -65,7 +65,7 @@ program
 program
   .command('list')
   .description('List exising CA certs by subject')
-  .action(async(_, cmd) => {
+  .action(async (_, cmd) => {
     const args = getOpts(cmd);
     args.certDir = args.caDir;
     for (const f of await fs.readdir(args.caDir)) {
@@ -83,7 +83,7 @@ program
 program
   .command('rm <SUBJECT>')
   .description('Remove a CA cert by subject')
-  .action(async(subject, _, cmd) => {
+  .action(async (subject, _, cmd) => {
     const args = getOpts(cmd);
     const fn = path.join(args.caDir, filenamify(subject));
     await fs.rm(`${fn}.cert.pem`);
