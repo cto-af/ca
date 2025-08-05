@@ -7,11 +7,11 @@ import test from 'node:test';
 
 const certDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cto-af-test-cert-'));
 const ISSUER = '/CN=github.cto-af.ca';
-test.after(async() => {
+test.after(async () => {
   await fs.rm(certDir, {recursive: true, force: true});
 });
 
-test('createCert', async() => {
+test('createCert', async () => {
   assert(certDir);
 
   const opts = {
