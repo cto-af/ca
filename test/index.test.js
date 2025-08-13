@@ -39,6 +39,10 @@ test('createCert', async () => {
   assert.equal(cert, cached.cert);
   assert.deepEqual(notAfter, cached.notAfter);
   assert.deepEqual(ca.cert, cached.ca.cert);
+  assert.deepEqual(cached.san, [{dns: 'localhost'}]);
+
+  const ip = await createCert({...opts, host: '::1'});
+  assert.deepEqual(ip.san, [{ip: '::1'}]);
 
   // Check what happens when the CA subject is wrong.
   const ISSUER2 = `${ISSUER}2`;

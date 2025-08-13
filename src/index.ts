@@ -4,6 +4,7 @@ import {KeyCert} from './cert.js';
 import {daysFromNow} from './utils.js';
 import envPaths from 'env-paths';
 import filenamify from 'filenamify';
+import net from 'node:net';
 import path from 'node:path';
 import rs from 'jsrsasign';
 
@@ -143,6 +144,10 @@ export async function createCert(
     throw new Error('Key required');
   }
 
+  const san = net.isIP(opts.host) ?
+    {extname: 'subjectAltName', array: [{ip: opts.host}]} :
+    {extname: 'subjectAltName', array: [{dns: opts.host}]};
+
   const x = new rs.KJUR.asn1.x509.Certificate({
     version: 3,
     serial: {int: now.getTime()},
@@ -154,7 +159,7 @@ export async function createCert(
     ext: [
       {extname: 'basicConstraints', cA: false},
       {extname: 'keyUsage', critical: true, names: ['digitalSignature']},
-      {extname: 'subjectAltName', array: [{dns: opts.host}]},
+      san,
     ],
     sigalg: 'SHA256withECDSA',
     cakey: ca.key,

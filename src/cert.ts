@@ -18,6 +18,7 @@ export class KeyCert {
   public readonly issuer: string;
   public readonly serial: string;
   public readonly ca: KeyCert | undefined;
+  public readonly san: rs.GeneralName[] | undefined;
 
   public constructor(
     name: string,
@@ -40,6 +41,7 @@ export class KeyCert {
     this.issuer = x.getIssuerString();
     this.ca = ca;
     this.serial = x.getSerialNumberHex();
+    this.san = x.getExtSubjectAltName()?.array;
   }
 
   public static async read(
