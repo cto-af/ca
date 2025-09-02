@@ -38,7 +38,7 @@ jobs:
       - name: dbus, if needed
         if: matrix.platform == 'ubuntu-latest'
         run: |
-          dbus-run-session -- bash -c "rm -f $HOME/.local/share/keyrings/* && echo -n "test" | gnome-keyring-daemon --unlock && yarn test"
+          dbus-run-session -- bash -c "rm -f $HOME/.local/share/keyrings/* && echo -n "test" | gnome-keyring-daemon --unlock"
       - name: Test ${{ matrix.node-version }} ${{ matrix.platform }}
         run: npm run build
       - name: Upload coverage reports to Codecov
