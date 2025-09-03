@@ -1,12 +1,21 @@
-import type {AnyKey, CertOptions, RequiredCertOptions} from './types.js';
-import {type Logger, createLog} from '@cto.af/log';
-import {KeyCert} from './cert.js';
+import type {
+  AnyKey,
+  CertOptions,
+  CommonCertLogOptions,
+  CommonCertOptions,
+  CtoCertOptions,
+  RequiredCertOptions,
+  RequiredCommonCertOptions,
+} from './types.js';
+import {KEYCHAIN_SERVICE, KeyCert, SELF_SIGNED, SecretEntry} from './cert.js';
+import {LOG_OPTIONS_NAMES, type LogOptions, type Logger, getLog} from '@cto.af/log';
 import {daysFromNow} from './utils.js';
 import envPaths from 'env-paths';
 import filenamify from 'filenamify';
 import net from 'node:net';
 import path from 'node:path';
 import rs from 'jsrsasign';
+import {select} from '@cto.af/utils';
 
 const CA_SUBJECT = '/C=US/ST=Colorado/L=Denver/O=@cto.af/CN=cto-af-Root-CA';
 const APP_NAME = '@cto.af/ca';
@@ -15,33 +24,313 @@ const {config} = envPaths(APP_NAME);
 export type {
   AnyKey,
   CertOptions,
-  RequiredCertOptions,
+  CommonCertLogOptions,
+  CommonCertOptions,
+  CtoCertOptions,
+  RequiredCertOptions as RequiredCtoCertOptions,
+  RequiredCommonCertOptions,
+  SecretEntry,
 };
 export {
+  KEYCHAIN_SERVICE,
   KeyCert,
+  SELF_SIGNED,
 };
 
+export const DEFAULT_CA_OPTIONS: RequiredCommonCertOptions = {
+  dir: config,
+  force: false,
+  host: CA_SUBJECT,
+  minRunDays: 1,
+  noKey: false,
+  notAfterDays: 365,
+  temp: false,
+};
+
+export const DEFAULT_COMMON_CERT_OPTIONS: RequiredCommonCertOptions = {
+  dir: '.cert',
+  force: false,
+  host: ['localhost', '127.0.0.1', '::1'],
+  minRunDays: 1,
+  noKey: false,
+  notAfterDays: 7,
+  temp: false,
+};
+
+/**
+ * @deprecated Use DEFAULT_CA_OPTIONS or DEFAULT_COMMON_CERT_OPTIONS.
+ */
 export const DEFAULT_CERT_OPTIONS: RequiredCertOptions = {
   caSubject: CA_SUBJECT,
   minRunDays: 1,
   notAfterDays: 7,
   caDir: config,
-  certDir: '.cert',
+  certDir: DEFAULT_COMMON_CERT_OPTIONS.dir,
   forceCA: false,
   forceCert: false,
-  host: 'localhost',
-  logLevel: 0,
-  logFile: null,
-  log: null,
+  host: DEFAULT_COMMON_CERT_OPTIONS.host,
   noKey: false,
+  temp: false,
 };
 
-function setLog(opts: CertOptions): Logger {
-  opts.log ??= createLog({
-    logLevel: opts.logLevel,
-    logFile: opts.logFile,
-  });
-  return opts.log;
+function altNames(hosts: string[]): jsrsasign.GeneralName[] {
+  return hosts.map(h => (
+    net.isIP(h) ? {ip: h} : {dns: h}
+  ));
+}
+
+/**
+ * Certificate Authority that does local storage, intended for testing on the
+ * local machine.
+ *
+ * WARNING: Not intended for scale or actual security.  DO NOT deploy on the
+ * Internet in the current form.
+ */
+export class CertificateAuthority {
+  #log: Logger;
+  #opts: RequiredCommonCertOptions;
+  #pair: KeyCert | null = null;
+
+  public constructor(options: CommonCertLogOptions) {
+    const [opts, logOpts] = select(
+      options,
+      DEFAULT_CA_OPTIONS,
+      LOG_OPTIONS_NAMES
+    );
+
+    this.#log = CertificateAuthority.logger(logOpts);
+    this.#opts = opts;
+  }
+
+  /**
+   * Create a child logger for the CA's use.
+   *
+   * @param logOpts Options for logging.
+   * @returns Child logger.
+   */
+  public static logger(logOpts: LogOptions): Logger {
+    const l = getLog(logOpts);
+    return l.child({ns: 'ca'});
+  }
+
+  /**
+   * List all of the CA certs.
+   *
+   * @param options Options, of which dir is the most important.
+   * @yields Instantiated instances of CA KeyCert's.
+   */
+  public static async *list(
+    options: CommonCertLogOptions
+  ): AsyncGenerator<KeyCert> {
+    const [opts, logOpts] = select(
+      options,
+      DEFAULT_CA_OPTIONS,
+      LOG_OPTIONS_NAMES
+    );
+    const log = CertificateAuthority.logger(logOpts);
+    yield *KeyCert.list(opts, log);
+  }
+
+  /**
+   * Mostly-internal, for initialization.  Must be called before any substantive
+   * work is done.
+   *
+   * @returns CA KeyCert.
+   */
+  public async init(): Promise<KeyCert> {
+    if (this.#pair) {
+      return this.#pair;
+    }
+    const [host, hosts] = (typeof this.#opts.host === 'string') ?
+      [this.#opts.host, [this.#opts.host]] :
+      [this.#opts.host[0], this.#opts.host];
+
+    if (hosts.length < 1) {
+      throw new Error('One or more hosts required');
+    }
+
+    const now = new Date();
+    const ca_file = filenamify(host);
+    if (!this.#opts.force) {
+      this.#pair = await KeyCert.read(
+        this.#opts, ca_file, this.#log, SELF_SIGNED
+      );
+      if (this.#pair) {
+        const na = this.#pair.notAfter;
+        if (na.getTime() < daysFromNow(this.#opts.minRunDays, now).getTime()) {
+          this.#log.warn(`Not enough CA run time: ${na}`);
+          this.#pair = null;
+        } else {
+          return this.#pair;
+        }
+      }
+    }
+    this.#log.info(`Creating new${this.#opts.temp ? ' temp' : ''} CA certificate`);
+    // Create a self-signed CA cert
+    const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
+    const prv = kp.prvKeyObj;
+    const pub = kp.pubKeyObj;
+
+    const recently = new Date(now.getTime() - 10000); // 10s ago.
+    const oneYear = daysFromNow(this.#opts.notAfterDays, now);
+
+    const ca_cert = new rs.KJUR.asn1.x509.Certificate({
+      version: 3,
+      serial: {int: now.getTime()},
+      issuer: {str: host},
+      notbefore: rs.datetozulu(recently, false, false),
+      notafter: rs.datetozulu(oneYear, false, false),
+      subject: {str: host},
+      sbjpubkey: pub,
+      ext: [
+        {extname: 'basicConstraints', critical: true, cA: true, pathLen: 0},
+        {extname: 'keyUsage', critical: true, names: ['digitalSignature', 'keyCertSign', 'cRLSign']},
+        {extname: 'authorityKeyIdentifier', kid: pub},
+        {extname: 'subjectKeyIdentifier', kid: pub},
+        {extname: 'extKeyUsage', array: ['serverAuth', 'clientAuth']},
+      ],
+      sigalg: 'SHA256withECDSA',
+      cakey: prv,
+    });
+    const kc = new KeyCert(host, prv, ca_cert, SELF_SIGNED);
+    await kc.write(this.#opts, this.#log);
+
+    if ((process.platform === 'darwin') && !this.#opts.temp) {
+      this.#log.info(`
+  To trust the new CA for OSX apps like Safari, try:
+  sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s.cert.pem
+  `, path.resolve(this.#opts.dir, ca_file));
+    }
+    this.#pair = kc;
+    return kc;
+  }
+
+  /**
+   * Issue a certificate for use in an HTTPS server.  May read from existing
+   * on-disk cert and in-keychain key.  Will generate a new cert if the old
+   * one is no longer valid.
+   *
+   * @param options Options.
+   * @returns Initialized KeyCert.
+   */
+  public async issue(options: CommonCertOptions): Promise<KeyCert> {
+    const [opts] = select(options, DEFAULT_COMMON_CERT_OPTIONS);
+    this.#log.debug('Issue options: %o', opts);
+    const ca = await this.init();
+
+    const [host, hosts] = (typeof opts.host === 'string') ?
+      [opts.host, [opts.host]] :
+      [opts.host[0], opts.host];
+
+    if (hosts.length < 1) {
+      throw new Error('One or more hosts required');
+    }
+
+    const now = new Date();
+    if (!opts.force) {
+      const pair = await KeyCert.read(opts, host, this.#log, ca);
+      if (pair) {
+        const oneDay = daysFromNow(opts.minRunDays, now);
+        if (pair.notAfter.getTime() < oneDay.getTime()) {
+          this.#log.warn('Not enough run time left on existing cert: %o < %o', pair.notAfter, oneDay);
+        } else if (pair.issuer !== ca.subject) {
+          this.#log.warn('Invalid CA subject "%s" != "%s".', pair.issuer, ca.subject);
+        } else if (pair.notBefore.getTime() >= ca.notBefore.getTime()) {
+          return pair; // Still valid.
+        }
+        this.#log.warn('CA no longer valid: %s < %s', pair.notBefore.toISOString(), ca.notBefore.toISOString());
+      }
+    }
+
+    this.#log.info('Creating cert for %o.', hosts);
+
+    const recently = new Date(now.getTime() - 10000); // 10s ago.
+    const nextWeek = daysFromNow(opts.notAfterDays, now);
+
+    const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
+    const prv = kp.prvKeyObj;
+    const pub = kp.pubKeyObj;
+
+    if (!ca.key) {
+      throw new Error('Key required');
+    }
+
+    const x = new rs.KJUR.asn1.x509.Certificate({
+      version: 3,
+      serial: {int: now.getTime()},
+      issuer: {str: ca.subject},
+      notbefore: rs.datetozulu(recently, true, false),
+      notafter: rs.datetozulu(nextWeek, true, false),
+      subject: {str: `/CN=${host}`},
+      sbjpubkey: pub,
+      ext: [
+        {extname: 'basicConstraints', cA: false},
+        {extname: 'keyUsage', critical: true, names: ['digitalSignature']},
+        {extname: 'subjectAltName', array: altNames(hosts)},
+        {extname: 'authorityKeyIdentifier', kid: ca.cert},
+        {extname: 'subjectKeyIdentifier', kid: pub},
+        {extname: 'extKeyUsage', array: ['serverAuth', 'clientAuth']},
+      ],
+      sigalg: 'SHA384withECDSA',
+      cakey: ca.key,
+    });
+
+    const kc = new KeyCert(host, prv, x.getPEM(), ca);
+    await kc.write(opts, this.#log);
+    return kc;
+  }
+
+  /**
+   * Delete the CA certificate and key.
+   */
+  public async delete(): Promise<void>;
+
+  /**
+   * Delete the given certificate and key.
+   */
+  public async delete(cert: KeyCert): Promise<void>;
+
+  /**
+   * Delete the certificate pointed to by the options dir and host.
+   *
+   * @param options Options.
+   */
+  public async delete(options: CommonCertOptions): Promise<void>;
+  public async delete(options?: KeyCert | CommonCertOptions): Promise<void> {
+    if (options == null) {
+      const kp = await this.init();
+      await kp.delete(this.#opts, this.#log);
+      return;
+    }
+    let kc: KeyCert | null = null;
+    let opts: Required<CommonCertOptions> = {
+      ...DEFAULT_COMMON_CERT_OPTIONS,
+      noKey: true,
+    };
+    if (options instanceof KeyCert) {
+      kc = options;
+    } else {
+      [opts] = select(options, opts);
+      let {host} = opts;
+      if (Array.isArray(host)) {
+        [host] = host;
+      }
+      kc = await KeyCert.read(opts, host, this.#log);
+    }
+    await kc?.delete(opts, this.#log);
+  }
+
+  /**
+   * List the certs in the local directory.
+   *
+   * @param options Options, of which dir is the most important.
+   * @yields Already-read KeyCert instances.
+   */
+  public async *list(options: CommonCertLogOptions): AsyncGenerator<KeyCert> {
+    const [opts] = select(options, DEFAULT_COMMON_CERT_OPTIONS);
+    const ca = await this.init();
+    yield *KeyCert.list(opts, this.#log, ca);
+  }
 }
 
 /**
@@ -49,57 +338,26 @@ function setLog(opts: CertOptions): Logger {
  *
  * @param options Cert options.
  * @returns Private Key / Certificate for CA.
+ * @deprecated Use `new CertificateAuthority().init()`.
  */
 export async function createCA(options: CertOptions): Promise<KeyCert> {
-  const opts: RequiredCertOptions = {
-    ...DEFAULT_CERT_OPTIONS,
-    ...options,
-  };
-  const log = setLog(opts);
-  opts.certDir = opts.caDir;
-
-  const ca_file = filenamify(opts.caSubject);
-  if (!opts.forceCA) {
-    const pair = await KeyCert.read(opts, ca_file);
-    if (pair) {
-      return pair; // Still valid.
-    }
-  }
-
-  log.info('Creating new CA certificate');
-  // Create a self-signed CA cert
-  const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
-  const prv = kp.prvKeyObj;
-  const pub = kp.pubKeyObj;
-
-  const now = new Date();
-  const recently = new Date(now.getTime() - 10000); // 10s ago.
-  const oneYear = daysFromNow(365, now);
-
-  const ca_cert = new rs.KJUR.asn1.x509.Certificate({
-    version: 3,
-    serial: {int: now.getTime()},
-    issuer: {str: opts.caSubject},
-    notbefore: rs.datetozulu(recently, false, false),
-    notafter: rs.datetozulu(oneYear, false, false),
-    subject: {str: opts.caSubject},
-    sbjpubkey: pub,
-    ext: [
-      {extname: 'basicConstraints', cA: true},
-    ],
-    sigalg: 'SHA256withECDSA',
-    cakey: prv,
+  const [opts, logOpts] = select(
+    options,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    DEFAULT_CERT_OPTIONS,
+    LOG_OPTIONS_NAMES
+  );
+  const ca = new CertificateAuthority({
+    dir: opts.caDir,
+    host: opts.caSubject,
+    minRunDays: 1,
+    notAfterDays: 365,
+    force: opts.forceCA,
+    noKey: opts.noKey,
+    temp: opts.temp,
+    ...logOpts,
   });
-  const kc = new KeyCert(opts.caSubject, prv, ca_cert);
-  await kc.write(opts);
-
-  if (process.platform === 'darwin') {
-    log.info(`
-To trust the new CA for OSX apps like Safari, try:
-sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s.cert.pem
-`, path.resolve(opts.caDir, ca_file));
-  }
-  return kc;
+  return ca.init();
 }
 
 /**
@@ -107,65 +365,35 @@ sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keyc
  *
  * @param options Certificate options.
  * @returns Cert and private key.
+ * @deprecated Use `new CertificateAuthority().issue()`.
  */
 export async function createCert(
   options: CertOptions
 ): Promise<KeyCert> {
-  const opts: RequiredCertOptions = {
-    ...DEFAULT_CERT_OPTIONS,
-    ...options,
-  };
-  const log = setLog(opts);
+  const [opts, logOpts] = select(
+    options,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    DEFAULT_CERT_OPTIONS,
+    LOG_OPTIONS_NAMES
+  );
 
-  const ca = await createCA(opts);
-  if (!opts.forceCert) {
-    const pair = await KeyCert.read(opts, opts.host, ca);
-    if (pair) {
-      if (pair.issuer !== ca.subject) {
-        log.warn('Invalid CA subject "%s" != "%s".', pair.issuer, ca.subject);
-      } else if (pair.notBefore.getTime() >= ca.notBefore.getTime()) {
-        return pair; // Still valid.
-      }
-      log.warn('CA no longer valid: %s < %s', pair.notBefore.toISOString(), ca.notBefore.toISOString());
-    }
-  }
-
-  log.info('Creating cert for "%s".', opts.host);
-
-  const now = new Date();
-  const recently = new Date(now.getTime() - 10000); // 10s ago.
-  const nextWeek = daysFromNow(opts.notAfterDays, now);
-
-  const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
-  const prv = kp.prvKeyObj;
-  const pub = kp.pubKeyObj;
-
-  if (!ca.key) {
-    throw new Error('Key required');
-  }
-
-  const san = net.isIP(opts.host) ?
-    {extname: 'subjectAltName', array: [{ip: opts.host}]} :
-    {extname: 'subjectAltName', array: [{dns: opts.host}]};
-
-  const x = new rs.KJUR.asn1.x509.Certificate({
-    version: 3,
-    serial: {int: now.getTime()},
-    issuer: {str: ca.subject},
-    notbefore: rs.datetozulu(recently, true, false),
-    notafter: rs.datetozulu(nextWeek, true, false),
-    subject: {str: `/CN=${opts.host}`},
-    sbjpubkey: pub,
-    ext: [
-      {extname: 'basicConstraints', cA: false},
-      {extname: 'keyUsage', critical: true, names: ['digitalSignature']},
-      san,
-    ],
-    sigalg: 'SHA256withECDSA',
-    cakey: ca.key,
+  const ca = new CertificateAuthority({
+    dir: opts.caDir,
+    host: opts.caSubject,
+    minRunDays: 1,
+    notAfterDays: 365,
+    force: opts.forceCA,
+    noKey: opts.noKey,
+    temp: opts.temp,
+    ...logOpts,
   });
-
-  const kc = new KeyCert(opts.host, prv, x.getPEM(), ca);
-  await kc.write(opts);
-  return kc;
+  return ca.issue({
+    dir: opts.certDir,
+    host: opts.host,
+    minRunDays: opts.minRunDays,
+    notAfterDays: opts.notAfterDays,
+    force: opts.forceCert,
+    noKey: opts.noKey,
+    temp: opts.temp,
+  });
 }
