@@ -9,13 +9,13 @@ import type {
 } from './types.js';
 import {KEYCHAIN_SERVICE, KeyCert, SELF_SIGNED, SecretEntry} from './cert.js';
 import {LOG_OPTIONS_NAMES, type LogOptions, type Logger, getLog} from '@cto.af/log';
+import {nameSet, select} from '@cto.af/utils';
 import {daysFromNow} from './utils.js';
 import envPaths from 'env-paths';
 import filenamify from 'filenamify';
 import net from 'node:net';
 import path from 'node:path';
 import rs from 'jsrsasign';
-import {select} from '@cto.af/utils';
 
 const CA_SUBJECT = '/C=US/ST=Colorado/L=Denver/O=@cto.af/CN=cto-af-Root-CA';
 const APP_NAME = '@cto.af/ca';
@@ -56,10 +56,12 @@ export const DEFAULT_COMMON_CERT_OPTIONS: RequiredCommonCertOptions = {
   notAfterDays: 7,
   temp: false,
 };
+export const COMMON_CERT_OPTIONS_NAMES = nameSet(DEFAULT_COMMON_CERT_OPTIONS);
 
 /**
  * @deprecated Use DEFAULT_CA_OPTIONS or DEFAULT_COMMON_CERT_OPTIONS.
  */
+// eslint-disable-next-line @typescript-eslint/no-deprecated
 export const DEFAULT_CERT_OPTIONS: RequiredCertOptions = {
   caSubject: CA_SUBJECT,
   minRunDays: 1,
@@ -340,7 +342,10 @@ export class CertificateAuthority {
  * @returns Private Key / Certificate for CA.
  * @deprecated Use `new CertificateAuthority().init()`.
  */
-export async function createCA(options: CertOptions): Promise<KeyCert> {
+export async function createCA(
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
+  options: CertOptions
+): Promise<KeyCert> {
   const [opts, logOpts] = select(
     options,
     // eslint-disable-next-line @typescript-eslint/no-deprecated
@@ -368,6 +373,7 @@ export async function createCA(options: CertOptions): Promise<KeyCert> {
  * @deprecated Use `new CertificateAuthority().issue()`.
  */
 export async function createCert(
+  // eslint-disable-next-line @typescript-eslint/no-deprecated
   options: CertOptions
 ): Promise<KeyCert> {
   const [opts, logOpts] = select(
