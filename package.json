@@ -1,6 +1,6 @@
 {
   "name": "@cto.af/ca",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "decription": "Minimal certificate authority suitable only for localhost testing.",
   "main": "lib/index.js",
   "files": [
