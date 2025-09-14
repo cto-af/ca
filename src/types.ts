@@ -37,9 +37,6 @@ export interface CommonCertOptions {
 
 export type RequiredCommonCertOptions = Required<CommonCertOptions>;
 
-/**
- * @deprecated Use CommonCertOptions.
- */
 export interface CtoCertOptions {
 
   /**
@@ -82,10 +79,8 @@ export interface CtoCertOptions {
   temp?: boolean;
 }
 
-/** @deprecated */
 export type RequiredCertOptions = Required<CtoCertOptions>;
 
-/** @deprecated */
 export type CertOptions = CtoCertOptions & LogOptions;
 export type CommonCertLogOptions = CommonCertOptions & LogOptions;
 

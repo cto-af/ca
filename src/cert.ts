@@ -223,7 +223,7 @@ export class KeyCert {
    * @returns Promise that completes when done deleting.
    */
   public async delete(
-    opts: RequiredCommonCertOptions,
+    opts?: RequiredCommonCertOptions,
     log?: Logger
   ): Promise<void> {
     if (opts?.temp) {
