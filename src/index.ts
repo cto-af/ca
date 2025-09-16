@@ -60,6 +60,8 @@ export const COMMON_CERT_OPTIONS_NAMES = nameSet(DEFAULT_COMMON_CERT_OPTIONS);
 
 export const DEFAULT_CERT_OPTIONS: RequiredCertOptions = {
   caSubject: CA_SUBJECT,
+  caNotAfterDays: DEFAULT_CA_OPTIONS.notAfterDays,
+  caMinRunDays: DEFAULT_CA_OPTIONS.minRunDays,
   minRunDays: 1,
   notAfterDays: 7,
   caDir: config,
@@ -78,6 +80,56 @@ function altNames(hosts: string[]): jsrsasign.GeneralName[] {
 }
 
 /**
+ * Extract CA options from mixed options.
+ *
+ * @param options Original options.
+ * @returns Extracted CA options.
+ */
+export function getCAoptions(options: CertOptions = {}): CommonCertLogOptions {
+  const [opts, logOpts] = select(
+    options,
+    DEFAULT_CERT_OPTIONS,
+    LOG_OPTIONS_NAMES
+  );
+
+  return {
+    dir: opts.caDir,
+    host: opts.caSubject,
+    minRunDays: opts.caMinRunDays,
+    notAfterDays: opts.caNotAfterDays,
+    force: opts.forceCA,
+    noKey: opts.noKey,
+    temp: opts.temp,
+    ...logOpts,
+  };
+}
+
+/**
+ * Extract leaf certificate options from mixed options.
+ *
+ * @param options Original options.
+ * @returns Extracted options.
+ */
+export function getIssueOptions(
+  options: CertOptions = {}
+): CommonCertLogOptions {
+  const [opts] = select(
+    options,
+    DEFAULT_CERT_OPTIONS
+  );
+
+  return {
+    dir: opts.certDir,
+    host: opts.host,
+    minRunDays: opts.minRunDays,
+    notAfterDays: opts.notAfterDays,
+    force: opts.forceCert,
+    noKey: opts.noKey,
+    temp: opts.temp,
+  };
+}
+
+/**
  * Certificate Authority that does local storage, intended for testing on the
  * local machine.
  *
@@ -89,7 +141,7 @@ export class CertificateAuthority {
   #opts: RequiredCommonCertOptions;
   #pair: KeyCert | null = null;
 
-  public constructor(options: CommonCertLogOptions) {
+  public constructor(options: CommonCertLogOptions = {}) {
     const [opts, logOpts] = select(
       options,
       DEFAULT_CA_OPTIONS,
@@ -210,7 +262,7 @@ export class CertificateAuthority {
    * @param options Options.
    * @returns Initialized KeyCert.
    */
-  public async issue(options: CommonCertOptions): Promise<KeyCert> {
+  public async issue(options: CommonCertOptions = {}): Promise<KeyCert> {
     const [opts] = select(options, DEFAULT_COMMON_CERT_OPTIONS);
     this.#log.debug('Issue options: %o', opts);
     const ca = await this.init();
@@ -337,23 +389,9 @@ export class CertificateAuthority {
  * @returns Private Key / Certificate for CA.
  */
 export async function createCA(
-  options: CertOptions
+  options: CertOptions = {}
 ): Promise<KeyCert> {
-  const [opts, logOpts] = select(
-    options,
-    DEFAULT_CERT_OPTIONS,
-    LOG_OPTIONS_NAMES
-  );
-  const ca = new CertificateAuthority({
-    dir: opts.caDir,
-    host: opts.caSubject,
-    minRunDays: 1,
-    notAfterDays: 365,
-    force: opts.forceCA,
-    noKey: opts.noKey,
-    temp: opts.temp,
-    ...logOpts,
-  });
+  const ca = new CertificateAuthority(getCAoptions(options));
   return ca.init();
 }
 
@@ -364,31 +402,8 @@ export async function createCA(
  * @returns Cert and private key.
  */
 export async function createCert(
-  options: CertOptions
+  options: CertOptions = {}
 ): Promise<KeyCert> {
-  const [opts, logOpts] = select(
-    options,
-    DEFAULT_CERT_OPTIONS,
-    LOG_OPTIONS_NAMES
-  );
-
-  const ca = new CertificateAuthority({
-    dir: opts.caDir,
-    host: opts.caSubject,
-    minRunDays: 1,
-    notAfterDays: 365,
-    force: opts.forceCA,
-    noKey: opts.noKey,
-    temp: opts.temp,
-    ...logOpts,
-  });
-  return ca.issue({
-    dir: opts.certDir,
-    host: opts.host,
-    minRunDays: opts.minRunDays,
-    notAfterDays: opts.notAfterDays,
-    force: opts.forceCert,
-    noKey: opts.noKey,
-    temp: opts.temp,
-  });
+  const ca = new CertificateAuthority(getCAoptions(options));
+  return ca.issue(getIssueOptions(options));
 }
