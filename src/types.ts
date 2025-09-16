@@ -44,8 +44,14 @@ export interface CtoCertOptions {
    */
   caSubject?: string;
 
+  /** CA certificate not valid after this many days. */
+  caNotAfterDays?: number;
+
+  /** Minimum number of days left on CA cert. */
+  caMinRunDays?: number;
+
   /**
-   * Minimum number of days the serve can run.  Ensure the cert will good
+   * Minimum number of days the server can run.  Ensure the cert will good
    * at least this long.
    */
   minRunDays?: number;
