@@ -1,4 +1,10 @@
-import {CertificateAuthority, KEYCHAIN_SERVICE, KeyCert, createCA, createCert} from '../lib/index.js';
+import {
+  CertificateAuthority,
+  KEYCHAIN_SERVICE,
+  KeyCert,
+  createCA,
+  createCert,
+} from '../lib/index.js';
 import {AsyncEntry} from '@napi-rs/keyring';
 import assert from 'node:assert';
 import fs from 'node:fs/promises';
@@ -120,7 +126,7 @@ test('createCert', async () => {
 });
 
 test('new API', async () => {
-  await assert.rejects(() => new CertificateAuthority({host: []}).init());
+  assert.throws(() => new CertificateAuthority({host: []}));
   const ca = new CertificateAuthority({dir: caDir});
   const kp = await ca.init();
   const kp2 = await ca.init();
@@ -168,6 +174,7 @@ test('new API', async () => {
     dir: caDir,
     temp: true,
     notAfterDays: 0.5,
+    host: ['/CN=temp-test'],
   });
   await tempCA.delete();
 });
@@ -192,4 +199,21 @@ test('timing', async () => {
   assert.notEqual(cert2.serial, cert.serial);
   await ca3.delete(opts); // Delete cert
   await ca3.delete();
+});
+
+test('issueNew', () => {
+  const opts = {
+    certDir,
+    caDir,
+    notAfterDays: 3,
+    logLevel: -10,
+    logFile,
+    caSubject: ISSUER,
+    temp: true,
+  };
+  const ca = new CertificateAuthority(opts);
+  assert.doesNotThrow(() => ca.issueNew());
+
+  const ca2 = new CertificateAuthority({...opts, temp: false});
+  assert.throws(() => ca2.issueNew());
 });

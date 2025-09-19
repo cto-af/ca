@@ -140,6 +140,7 @@ export class CertificateAuthority {
   #log: Logger;
   #opts: RequiredCommonCertOptions;
   #pair: KeyCert | null = null;
+  #subject: string;
 
   public constructor(options: CommonCertLogOptions = {}) {
     const [opts, logOpts] = select(
@@ -147,6 +148,15 @@ export class CertificateAuthority {
       DEFAULT_CA_OPTIONS,
       LOG_OPTIONS_NAMES
     );
+
+    if (Array.isArray(opts.host)) {
+      if (opts.host.length !== 1) {
+        throw new TypeError(`Only single host allowed for CA subject, got ${opts.host.length}`);
+      }
+      [this.#subject] = opts.host;
+    } else {
+      this.#subject = opts.host;
+    }
 
     this.#log = CertificateAuthority.logger(logOpts);
     this.#opts = opts;
@@ -190,17 +200,9 @@ export class CertificateAuthority {
     if (this.#pair) {
       return this.#pair;
     }
-    const [host, hosts] = (typeof this.#opts.host === 'string') ?
-      [this.#opts.host, [this.#opts.host]] :
-      [this.#opts.host[0], this.#opts.host];
-
-    if (hosts.length < 1) {
-      throw new Error('One or more hosts required');
-    }
-
     const now = new Date();
-    const ca_file = filenamify(host);
-    if (!this.#opts.force) {
+    const ca_file = filenamify(this.#subject);
+    if (!this.#opts.force && !this.#opts.temp) {
       this.#pair = await KeyCert.read(
         this.#opts, ca_file, this.#log, SELF_SIGNED
       );
@@ -214,34 +216,7 @@ export class CertificateAuthority {
         }
       }
     }
-    this.#log.info(`Creating new${this.#opts.temp ? ' temp' : ''} CA certificate`);
-    // Create a self-signed CA cert
-    const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
-    const prv = kp.prvKeyObj;
-    const pub = kp.pubKeyObj;
-
-    const recently = new Date(now.getTime() - 10000); // 10s ago.
-    const oneYear = daysFromNow(this.#opts.notAfterDays, now);
-
-    const ca_cert = new rs.KJUR.asn1.x509.Certificate({
-      version: 3,
-      serial: {int: now.getTime()},
-      issuer: {str: host},
-      notbefore: rs.datetozulu(recently, false, false),
-      notafter: rs.datetozulu(oneYear, false, false),
-      subject: {str: host},
-      sbjpubkey: pub,
-      ext: [
-        {extname: 'basicConstraints', critical: true, cA: true, pathLen: 0},
-        {extname: 'keyUsage', critical: true, names: ['digitalSignature', 'keyCertSign', 'cRLSign']},
-        {extname: 'authorityKeyIdentifier', kid: pub},
-        {extname: 'subjectKeyIdentifier', kid: pub},
-        {extname: 'extKeyUsage', array: ['serverAuth', 'clientAuth']},
-      ],
-      sigalg: 'SHA256withECDSA',
-      cakey: prv,
-    });
-    const kc = new KeyCert(host, prv, ca_cert, SELF_SIGNED);
+    const kc = this.#create(now);
     await kc.write(this.#opts, this.#log);
 
     if ((process.platform === 'darwin') && !this.#opts.temp) {
@@ -250,7 +225,6 @@ export class CertificateAuthority {
   sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain %s.cert.pem
   `, path.resolve(this.#opts.dir, ca_file));
     }
-    this.#pair = kc;
     return kc;
   }
 
@@ -276,7 +250,7 @@ export class CertificateAuthority {
     }
 
     const now = new Date();
-    if (!opts.force) {
+    if (!opts.force && !opts.temp) {
       const pair = await KeyCert.read(opts, host, this.#log, ca);
       if (pair) {
         const oneDay = daysFromNow(opts.minRunDays, now);
@@ -289,6 +263,28 @@ export class CertificateAuthority {
         }
         this.#log.warn('CA no longer valid: %s < %s', pair.notBefore.toISOString(), ca.notBefore.toISOString());
       }
+    }
+
+    const kc = this.issueNew(options, now);
+    await kc.write(opts, this.#log);
+    return kc;
+  }
+
+  public issueNew(
+    options: CommonCertOptions = {},
+    now = new Date()
+  ): KeyCert {
+    const [opts] = select(options, DEFAULT_COMMON_CERT_OPTIONS);
+    const [host, hosts] = (typeof opts.host === 'string') ?
+      [opts.host, [opts.host]] :
+      [opts.host[0], opts.host];
+
+    let ca = this.#pair;
+    if (!ca) {
+      if (!this.#opts.temp) {
+        throw new TypeError('Only call issueNew directly for temp CAs');
+      }
+      ca = this.#create(now);
     }
 
     this.#log.info('Creating cert for %o.', hosts);
@@ -323,10 +319,7 @@ export class CertificateAuthority {
       sigalg: 'SHA384withECDSA',
       cakey: ca.key,
     });
-
-    const kc = new KeyCert(host, prv, x.getPEM(), ca);
-    await kc.write(opts, this.#log);
-    return kc;
+    return new KeyCert(host, prv, x.getPEM(), ca);
   }
 
   /**
@@ -379,6 +372,45 @@ export class CertificateAuthority {
     const [opts] = select(options, DEFAULT_COMMON_CERT_OPTIONS);
     const ca = await this.init();
     yield *KeyCert.list(opts, this.#log, ca);
+  }
+
+  /**
+   * Just the sync parts of init().
+   *
+   * @param now Current time.
+   * @returns New CA KeyCert.
+   */
+  #create(now = new Date()): KeyCert {
+    this.#log.info(`Creating new${this.#opts.temp ? ' temp' : ''} CA certificate`);
+    // Create a self-signed CA cert
+    const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
+    const prv = kp.prvKeyObj;
+    const pub = kp.pubKeyObj;
+
+    const recently = new Date(now.getTime() - 10000); // 10s ago.
+    const oneYear = daysFromNow(this.#opts.notAfterDays, now);
+
+    const ca_cert = new rs.KJUR.asn1.x509.Certificate({
+      version: 3,
+      serial: {int: now.getTime()},
+      issuer: {str: this.#subject},
+      notbefore: rs.datetozulu(recently, false, false),
+      notafter: rs.datetozulu(oneYear, false, false),
+      subject: {str: this.#subject},
+      sbjpubkey: pub,
+      ext: [
+        {extname: 'basicConstraints', critical: true, cA: true, pathLen: 0},
+        {extname: 'keyUsage', critical: true, names: ['digitalSignature', 'keyCertSign', 'cRLSign']},
+        {extname: 'authorityKeyIdentifier', kid: pub},
+        {extname: 'subjectKeyIdentifier', kid: pub},
+        {extname: 'extKeyUsage', array: ['serverAuth', 'clientAuth']},
+      ],
+      sigalg: 'SHA256withECDSA',
+      cakey: prv,
+    });
+    const kc = new KeyCert(this.#subject, prv, ca_cert, SELF_SIGNED);
+    this.#pair = kc;
+    return kc;
   }
 }
 
