@@ -13,11 +13,5 @@ export default defineConfig(
   jsdoc,
   json,
   jts,
-  markdown,
-  {
-    files: ['src/*.ts'],
-    rules: {
-      'jsdoc/require-yields-type': 'off',
-    },
-  }
+  markdown
 );
