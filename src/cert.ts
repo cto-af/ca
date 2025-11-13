@@ -50,6 +50,18 @@ export class KeyCert {
   }
 
   /**
+   * The PEM-encoded full certificate chain, starting with this cert, then
+   * adding the CA cert if there is a CA.
+   */
+  public get chain(): string {
+    let ret = this.cert;
+    if (this.ca) {
+      ret += this.ca.cert;
+    }
+    return ret;
+  }
+
+  /**
    * The account name of the key, stored under KEYCHAIN_SERVICE in the
    * OS-specific keychain.  This corresponds to the file name that the key
    * used to be stored in.  This file should no longer exist after the upgrade

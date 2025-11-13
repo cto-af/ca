@@ -49,12 +49,13 @@ test('createCert', async () => {
   await assert.rejects(() => createCert({...opts, host: []}));
 
   const kc = await createCert(opts);
-  const {key, cert, notAfter, ca, issuer, subject, san} = kc;
+  const {key, cert, chain, notAfter, ca, issuer, subject, san} = kc;
   assert(key);
   assert(cert);
   assert(notAfter);
   assert(ca);
   assert(san);
+  assert.equal(chain, cert + ca.cert);
 
   assert.equal(ca.subject, ISSUER);
   assert.equal(subject, '/CN=localhost');
@@ -88,9 +89,9 @@ test('createCert', async () => {
 
   await fs.writeFile(path.join(certDir, 'localhost.cert.pem'), 'MANGLED CERT', 'utf8');
   await assert.rejects(() => createCert(opts));
+  await fs.rm(path.join(certDir, 'localhost.cert.pem'));
 
   // Doesn't exist, create new
-  await fs.rm(path.join(certDir, 'localhost.cert.pem'));
   await assert.doesNotReject(
     () => createCert(opts).then(kp => kp.delete(opts))
   );
@@ -158,6 +159,15 @@ test('new API', async () => {
   const cert3 = await ca.issue({...opts, force: true});
   assert.notEqual(cert3.serial, cert.serial);
 
+  // Delete the good key, and drop a directory where the old key would have
+  // been, causing the file removal to fail.
+  const ae = new AsyncEntry(KEYCHAIN_SERVICE, kf);
+  await ae.deletePassword();
+  await fs.mkdir(kf);
+  await assert.rejects(() => ca.issue(opts));
+
+  await assert.rejects(() => ca.issue({...opts, force: true}));
+
   certs = await fromAsync(CertificateAuthority.list(opts));
   assert.equal(certs.length, 1);
 
@@ -165,11 +175,16 @@ test('new API', async () => {
   assert.equal(certs.length, 1);
 
   const log = CertificateAuthority.logger(opts);
-  await cert3.delete(opts, log);
+  await assert.rejects(() => cert3.delete(opts, log));
+  await fs.rmdir(kf);
+
+  const cert4 = await ca.issue({...opts, force: true});
+  await fs.writeFile(kf, cert.key);
+  await cert4.delete(opts, log);
+
   await ca.delete();
 
   // Temp certs
-  opts.temp = true;
   const tempCA = new CertificateAuthority({
     dir: caDir,
     temp: true,
