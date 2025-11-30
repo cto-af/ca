@@ -35,6 +35,20 @@ const server = createServer({key, cert}, () => {
 });
 ```
 
+On the client side, a mechanism is provided to override some of the TLS
+internals of node so that fetch will work correctly.
+
+Example:
+
+```js
+import {whileCAtrusted} from '@cto.af/ca/client';
+
+const fetchResult = await whileCAtrusted(
+  {}, // CA options, or a PEM-encoded string with the CA cert.
+  () => fetch('https://localhost:8001')
+);
+```
+
 ### CLI
 
 A rudimentary CLI is provided.
