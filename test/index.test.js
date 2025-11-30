@@ -143,6 +143,9 @@ test('whileCAtrusted', async () => {
   const whileRet = await whileCAtrusted(opts, () => tls.createSecureContext());
   assert(whileRet.context);
 
+  const certRet = await whileCAtrusted(kc.ca.cert, () => 4);
+  assert.equal(certRet, 4);
+
   await assert.rejects(async () => {
     await whileCAtrusted(opts, () => whileCAtrusted(opts, () => 5));
   }, /createSecureContext already hooked/);

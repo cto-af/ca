@@ -16,11 +16,17 @@ let currentSym: symbol | undefined = undefined;
  * @throws On invalid state.
  */
 export async function overrideCreateSecureContext(
-  options: CertOptions
+  options: CertOptions | string
 ): Promise<symbol> {
-  const CA = new CertificateAuthority(options);
-  const {ca} = await CA.init();
-  assert(ca, 'Will always be filled in if no exception thrown');
+  let cert: string | undefined = undefined;
+  if (typeof options === 'string') {
+    cert = options;
+  } else {
+    const CA = new CertificateAuthority(options);
+    const {ca} = await CA.init();
+    assert(ca, 'Will always be filled in if no exception thrown');
+    ({cert} = ca);
+  }
 
   assert.equal(
     origCsC.name,
@@ -37,7 +43,7 @@ export async function overrideCreateSecureContext(
   tls.createSecureContext =
     (opts: tls.SecureContextOptions | undefined): tls.SecureContext => {
       const res = origCsC(opts);
-      res.context.addCACert(ca.cert);
+      res.context.addCACert(cert);
       return res;
     };
   return currentSym;
@@ -75,7 +81,7 @@ export function resetCreateSecureContext(sym: symbol): void {
  * @returns The result of during.
  */
 export async function whileCAtrusted<T>(
-  options: CertOptions,
+  options: CertOptions | string,
   during: () => T
 ): Promise<Awaited<T>> {
   const sym = await overrideCreateSecureContext(options);
