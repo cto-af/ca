@@ -7,7 +7,7 @@ import {
   DEFAULT_CA_OPTIONS,
   DEFAULT_COMMON_CERT_OPTIONS,
   KeyCert,
-} from '../lib/index.js';
+} from '../lib/index.mjs';
 import {Command} from 'commander';
 import filenamify from 'filenamify';
 import fs from 'node:fs/promises';

@@ -4,13 +4,15 @@ import {
   KeyCert,
   createCA,
   createCert,
-} from '../lib/index.js';
+} from '../lib/index.mjs';
+import {resetCreateSecureContext, whileCAtrusted} from '../lib/client.mjs';
 import {AsyncEntry} from '@napi-rs/keyring';
 import assert from 'node:assert';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import tls from 'node:tls';
 
 const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cto-af-test-cert-'));
 const certDir = path.join(rootDir, 'certs');
@@ -124,6 +126,37 @@ test('createCert', async () => {
   await kct.delete(opts, log);
   await ca.delete(undefined, log);
   await cert2.ca.delete(null, log);
+});
+
+test('whileCAtrusted', async () => {
+  const opts = {
+    certDir,
+    caDir,
+    notAfterDays: 3,
+    logLevel: -10,
+    logFile,
+    caSubject: ISSUER,
+  };
+
+  const kc = await createCert(opts);
+
+  const whileRet = await whileCAtrusted(opts, () => tls.createSecureContext());
+  assert(whileRet.context);
+
+  await assert.rejects(async () => {
+    await whileCAtrusted(opts, () => whileCAtrusted(opts, () => 5));
+  }, /createSecureContext already hooked/);
+
+  await kc.delete();
+  await kc.ca.delete();
+
+  await assert.rejects(
+    () => whileCAtrusted({...opts, host: []}, () => Promise.resolve(4)),
+    /Only single host allowed for CA subject, got 0/
+  );
+
+  assert.throws(() => resetCreateSecureContext(undefined));
+  assert.throws(() => resetCreateSecureContext(Symbol('overrideCreateSecureContext')));
 });
 
 test('new API', async () => {
