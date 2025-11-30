@@ -4,3 +4,5 @@ coverage/
 docs/
 lib/
 node_modules/
+.pnpm-store/
+.devcontainer/

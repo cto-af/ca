@@ -3,7 +3,7 @@
 /** @import * as typedoc from 'typedoc'; */
 /** @type {typedoc.TypeDocOptions} */
 module.exports = {
-  entryPoints: ['src/index.ts'],
+  entryPoints: ['src/index.ts', 'src/client.ts'],
   out: 'docs',
   cleanOutputDir: true,
   sidebarLinks: {
