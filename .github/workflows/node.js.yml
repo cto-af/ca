@@ -30,7 +30,8 @@ jobs:
           cache: 'pnpm'
       - name: Dependencies
         run: pnpm install -r
-      - uses: t1m0thyj/unlock-keyring@v1
+      - name: dbus and gnome-keyring
+        uses: t1m0thyj/unlock-keyring@v1
         if: matrix.platform == 'ubuntu-latest'
       - name: Test ${{ matrix.node-version }} ${{ matrix.platform }}
         run: npm run build

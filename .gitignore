@@ -1,5 +1,4 @@
 .cert/
-.devcontainer/
 .pnpm-store/
 .vscode/
 coverage/
