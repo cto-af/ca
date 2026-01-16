@@ -1,8 +1,7 @@
 .cert/
+.pnpm-store/
 .vscode/
 coverage/
 docs/
 lib/
 node_modules/
-.pnpm-store/
-.devcontainer/
