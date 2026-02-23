@@ -9,5 +9,7 @@
         "connor4312.nodejs-testing"
       ]
     }
-  }
+  },
+  "postCreateCommand": "sudo npm install -g npm-check-updates"
+
 }

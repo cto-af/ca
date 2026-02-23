@@ -23,8 +23,8 @@ import path from 'node:path';
 import rs from 'jsrsasign';
 
 const CA_SUBJECT = '/C=US/ST=Colorado/L=Denver/O=@cto.af/CN=cto-af-Root-CA';
-const APP_NAME = '@cto.af/ca';
-const {config} = envPaths(APP_NAME);
+const {config: ctoafConfig} = envPaths('@cto.af');
+const config = path.join(ctoafConfig, 'ca');
 
 export type {
   AnyKey,
