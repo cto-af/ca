@@ -48,6 +48,9 @@ importers:
       eslint-plugin-jsdoc:
         specifier: 62.7.1
         version: 62.7.1(eslint@10.0.2)
+      super8:
+        specifier: ^0.0.0
+        version: 0.0.0
       tsdown:
         specifier: 0.20.3
         version: 0.20.3(typescript@5.9.3)
@@ -1298,6 +1301,9 @@ packages:
   strip-json-comments@5.0.3:
     resolution: {integrity: sha512-1tB5mhVo7U+ETBKNf92xT4hrQa3pm0MZ0PQvuDnWgAAGHDsfp4lPSpiS6psrSiet87wyGPh9ft6wmhOMQ0hDiw==}
     engines: {node: '>=14.16'}
+
+  super8@0.0.0:
+    resolution: {integrity: sha512-WnzN6z5h0bipsUr7cLVpdRqENMNDgoi2D1fbBopI4hc9IZkIZAt/T00mEDFWwx1GrJ0D9kiXovH5kAz6SBZvQw==}
 
   tapable@2.3.0:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
@@ -2808,6 +2814,8 @@ snapshots:
   split2@4.2.0: {}
 
   strip-json-comments@5.0.3: {}
+
+  super8@0.0.0: {}
 
   tapable@2.3.0: {}
 
