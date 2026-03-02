@@ -59,7 +59,7 @@
     "@types/node": "25.3.3",
     "eslint": "10.0.2",
     "eslint-plugin-jsdoc": "62.7.1",
-    "super8": "^0.0.0",
+    "superc8": "12.2.4",
     "tsdown": "0.20.3",
     "typedoc": "0.28.17",
     "typescript": "5.9.3",
