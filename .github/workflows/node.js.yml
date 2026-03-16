@@ -21,15 +21,14 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: true
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
-      - name: Dependencies
-        run: pnpm install -r
+      - uses: pnpm/action-setup@v4
+        with:
+          cache: true
+          run_install: true
       - name: dbus and gnome-keyring
         uses: t1m0thyj/unlock-keyring@v1
         if: matrix.platform == 'ubuntu-latest'

@@ -44,28 +44,28 @@
     "build": "npm run test && npm run lint && npm run docs && npm pack --dry-run"
   },
   "dependencies": {
-    "@cto.af/log": "1.3.6",
-    "@cto.af/utils": "1.4.2",
-    "@napi-rs/keyring": "1.2.0",
-    "commander": "14.0.3",
-    "env-paths": "4.0.0",
-    "filenamify": "7.0.1",
-    "jsrsasign": "11.1.1"
+    "@cto.af/log": "~1.3.6",
+    "@cto.af/utils": "~1.4.2",
+    "@napi-rs/keyring": "~1.2.0",
+    "commander": "~14.0.3",
+    "env-paths": "~4.0.0",
+    "filenamify": "~7.0.1",
+    "jsrsasign": "~11.1.1"
   },
   "devDependencies": {
-    "@cto.af/eslint-config": "6.2.5",
-    "@eslint/markdown": "7.5.1",
-    "@types/jsrsasign": "10.5.15",
-    "@types/node": "25.3.3",
-    "eslint": "10.0.2",
-    "eslint-plugin-jsdoc": "62.7.1",
-    "superc8": "12.2.4",
-    "tsdown": "0.20.3",
-    "typedoc": "0.28.17",
-    "typescript": "5.9.3",
-    "typescript-eslint": "8.56.1"
+    "@cto.af/eslint-config": "^6.2.5",
+    "@eslint/markdown": "^7.5.1",
+    "@types/jsrsasign": "^10.5.15",
+    "@types/node": "^25.5.0",
+    "eslint": "^10.0.3",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "superc8": "^12.3.1",
+    "tsdown": "^0.21.4",
+    "typedoc": "^0.28.17",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.1"
   },
-  "packageManager": "pnpm@10.30.3",
+  "packageManager": "pnpm@10.32.1",
   "engines": {
     "node": ">=20"
   }
