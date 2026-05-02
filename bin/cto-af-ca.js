@@ -12,6 +12,7 @@ import {Command} from 'commander';
 import filenamify from 'filenamify';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import pkg from '../package.json' with {type: 'json'};
 
 let logLevel = 0;
 const prettyIgnore = 'pid,hostname,ns';
@@ -25,6 +26,7 @@ function collect(value, previous) {
 
 const program = new Command();
 program
+  .version(pkg.version)
   .option('-d, --dir <DIRECTORY>', 'Directory for CA certs', DEFAULT_CA_OPTIONS.dir)
   .option('-q, --quiet', 'Less verbose', () => --logLevel)
   .option('-v, --verbose', 'More verbose', () => ++logLevel)
