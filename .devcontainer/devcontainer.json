@@ -4,12 +4,17 @@
   "dockerFile": "Dockerfile",
   "customizations": {
     "vscode": {
+      "settings": {
+        "js/ts.experimental.useTsgo": true,
+        "typescript.native-preview.tsdk": "/workspaces/ca/node_modules/@typescript/native-preview"
+      },
       "extensions": [
+        "dbaeumer.vscode-eslint",
         "editorconfig.editorconfig",
-        "connor4312.nodejs-testing"
+        "connor4312.nodejs-testing",
+        "typescriptteam.native-preview"
       ]
     }
   },
   "postCreateCommand": "sudo npm install -g npm-check-updates"
-
 }

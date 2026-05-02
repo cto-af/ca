@@ -2,10 +2,10 @@
   "name": "@cto.af/ca",
   "version": "2.6.4",
   "decription": "Minimal certificate authority suitable only for localhost testing.",
-  "main": "lib/index.mjs",
+  "main": "lib/index.js",
   "exports": {
-    ".": "./lib/index.mjs",
-    "./client": "./lib/client.mjs"
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js"
   },
   "files": [
     "bin/*",
@@ -36,11 +36,11 @@
   "scripts": {
     "clean": "rm -rf coverage docs lib",
     "lint": "eslint .",
-    "pretest": "tsdown --sourcemap",
+    "pretest": "npm run ts -- --inlineSourceMap",
     "test": "c8 node --enable-source-maps --test",
-    "posttest": "tsdown --silent",
+    "posttest": "npm run ts",
     "docs": "typedoc",
-    "ts": "tsdown",
+    "ts": "tsgo",
     "build": "npm run test && npm run lint && npm run docs && npm pack --dry-run"
   },
   "dependencies": {
@@ -57,12 +57,11 @@
     "@eslint/markdown": "^8.0.1",
     "@types/jsrsasign": "^10.5.15",
     "@types/node": "^25.6.0",
+    "@typescript/native-preview": "7.0.0-dev.20260502.1",
     "eslint": "^10.3.0",
     "eslint-plugin-jsdoc": "^62.9.0",
     "superc8": "^12.3.1",
-    "tsdown": "^0.21.10",
     "typedoc": "^0.28.19",
-    "typescript": "^6.0.3",
     "typescript-eslint": "^8.59.1"
   },
   "packageManager": "pnpm@11.0.3",

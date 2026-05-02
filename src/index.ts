@@ -7,7 +7,7 @@ import type {
   RequiredCertOptions,
   RequiredCommonCertOptions,
 } from './types.js';
-import {KEYCHAIN_SERVICE, KeyCert, SELF_SIGNED, SecretEntry} from './cert.js';
+import {KEYCHAIN_SERVICE, KeyCert, SELF_SIGNED, type SecretEntry} from './cert.js';
 import {
   LOG_OPTIONS_NAMES,
   type LogOptions,

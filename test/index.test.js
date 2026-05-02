@@ -4,8 +4,8 @@ import {
   KeyCert,
   createCA,
   createCert,
-} from '../lib/index.mjs';
-import {resetCreateSecureContext, whileCAtrusted} from '../lib/client.mjs';
+} from '../lib/index.js';
+import {resetCreateSecureContext, whileCAtrusted} from '../lib/client.js';
 import {AsyncEntry} from '@napi-rs/keyring';
 import assert from 'node:assert';
 import fs from 'node:fs/promises';
