@@ -7,7 +7,7 @@ import markdown from '@cto.af/eslint-config/markdown.js';
 import ts from '@cto.af/eslint-config/ts.js';
 
 export default defineConfig(
-  globalIgnores(['lib/**', 'docs/**', 'node_modules/**', '.pnpm-store/**']),
+  globalIgnores(['lib/**']),
   es6,
   ts,
   jsdoc,
