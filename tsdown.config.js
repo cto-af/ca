@@ -13,6 +13,6 @@ export default defineConfig({
   },
   outDir: 'lib',
   sourcemap: false,
-  target: 'es2022',
+  target: 'es2025',
   unbundle: true,
 });
