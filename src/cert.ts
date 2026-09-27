@@ -5,7 +5,7 @@ import type {
 } from './types.js';
 import {type SecretEntry, deleteSecret, getSecret, listSecrets, setSecret} from './keychain.js';
 import type {Logger} from '@cto.af/log';
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 import {errCode} from '@cto.af/utils';
 import filenamify from 'filenamify';
 import fs from 'node:fs/promises';

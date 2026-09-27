@@ -7,7 +7,7 @@ import {
 } from '../lib/index.js';
 import {resetCreateSecureContext, whileCAtrusted} from '../lib/client.js';
 import {AsyncEntry} from '@napi-rs/keyring';
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
