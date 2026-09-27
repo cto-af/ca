@@ -1,5 +1,5 @@
 import {type CertOptions, CertificateAuthority} from './index.js';
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 import tls from 'node:tls';
 
 const origCsC = tls.createSecureContext;
