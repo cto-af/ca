@@ -45,7 +45,7 @@
   },
   "dependencies": {
     "@cto.af/log": "~2.0.0",
-    "@cto.af/utils": "~2.0.0",
+    "@cto.af/utils": "~2.0.1",
     "@napi-rs/keyring": "~2.1.0",
     "commander": "~15.0.0",
     "env-paths": "~4.0.0",
