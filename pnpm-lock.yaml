@@ -197,9 +197,6 @@ importers:
       '@eslint/markdown':
         specifier: ^8.0.3
         version: 8.0.3(supports-color@10.2.2)
-      '@types/jsrsasign':
-        specifier: ^10.5.15
-        version: 10.5.15
       '@types/node':
         specifier: ^26.6.5
         version: 26.6.5
@@ -1535,9 +1532,6 @@ packages:
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
-
-  '@types/jsrsasign@10.5.15':
-    resolution: {integrity: sha512-3stUTaSRtN09PPzVWR6aySD9gNnuymz+WviNHoTb85dKu+BjaV4uBbWWGykBBJkfwPtcNZVfTn2lbX00U+yhpQ==}
 
   '@types/katex@0.16.8':
     resolution: {integrity: sha512-trgaNyfU+Xh2Tc+ABIb44a5AYUpicB3uwirOioeOkNPPbmgRNtcWyDeeFRzjPZENO9Vq8gvVqfhaaXWLlevVwg==}
@@ -5067,8 +5061,6 @@ snapshots:
   '@types/jsesc@2.5.1': {}
 
   '@types/json-schema@7.0.15': {}
-
-  '@types/jsrsasign@10.5.15': {}
 
   '@types/katex@0.16.8': {}
 
