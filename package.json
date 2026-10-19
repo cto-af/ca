@@ -51,13 +51,11 @@
     "commander": "~15.0.0",
     "env-paths": "~4.0.0",
     "filenamify": "~7.0.3",
-    "jsrsasign": "~11.1.5",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
     "@cto.af/eslint-config": "^7.0.3",
     "@eslint/markdown": "^8.0.3",
-    "@types/jsrsasign": "^10.5.15",
     "@types/node": "^26.6.5",
     "@typescript/native": "npm:typescript@^7.0.2",
     "eslint": "^10.12.0",
