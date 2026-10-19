@@ -154,12 +154,12 @@ export class KeyCert {
    *
    * @returns Array of {dns: 'hostname'} or {ip: 'address'} objects.
    */
-  public get san(): SAN[] | undefined {
+  public get san(): SAN[] {
     const san = this.#x509.extensions.find(
       e => e instanceof x509.SubjectAlternativeNameExtension
     );
     if (!san) {
-      return undefined;
+      return [];
     }
     return san.names.items.map(s => {
       switch (s.type) {

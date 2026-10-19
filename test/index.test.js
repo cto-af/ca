@@ -263,7 +263,10 @@ test('issueNew', async () => {
     temp: true,
   };
   const ca = new CertificateAuthority(opts);
-  await assert.doesNotReject(() => ca.issueNew());
+  const cert = ca.issueNew({host: []});
+
+  // Fiddle with SANs.  Unrelated, just a convenient place.
+  assert.deepEqual((await cert).san, []);
 
   const ca2 = new CertificateAuthority({...opts, temp: false});
   await assert.rejects(() => ca2.issueNew());

@@ -320,6 +320,22 @@ export class CertificateAuthority {
       throw new Error('Key required');
     }
 
+    const extensions: x509.Extension[] = [
+      new x509.BasicConstraintsExtension(false),
+      new x509.KeyUsagesExtension(x509.KeyUsageFlags.digitalSignature, true),
+      await x509.AuthorityKeyIdentifierExtension.create(publicKey),
+      await x509.SubjectKeyIdentifierExtension.create(publicKey),
+      new x509.ExtendedKeyUsageExtension([
+        x509.ExtendedKeyUsage.serverAuth,
+        x509.ExtendedKeyUsage.clientAuth,
+      ]),
+    ];
+    if (hosts.length > 0) {
+      extensions.push(
+        new x509.SubjectAlternativeNameExtension(altNames(hosts))
+      );
+    }
+
     const x = await x509.X509CertificateGenerator.create({
       serialNumber: now.getTime().toString(16),
       issuer: ca.subject,
@@ -327,17 +343,7 @@ export class CertificateAuthority {
       notAfter: nextWeek,
       subject: `/CN=${host}`,
       publicKey,
-      extensions: [
-        new x509.BasicConstraintsExtension(false),
-        new x509.KeyUsagesExtension(x509.KeyUsageFlags.digitalSignature, true),
-        new x509.SubjectAlternativeNameExtension(altNames(hosts)),
-        await x509.AuthorityKeyIdentifierExtension.create(publicKey),
-        await x509.SubjectKeyIdentifierExtension.create(publicKey),
-        new x509.ExtendedKeyUsageExtension([
-          x509.ExtendedKeyUsage.serverAuth,
-          x509.ExtendedKeyUsage.clientAuth,
-        ]),
-      ],
+      extensions,
       signingAlgorithm: {
         name: 'ECDSA',
       },
