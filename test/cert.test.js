@@ -18,8 +18,15 @@ test('No CA', async () => {
     notAfter: new Date('2020/01/02'),
     signingAlgorithm: {name: 'ECDSA'},
     keys,
+    extensions: [
+      new x509.SubjectAlternativeNameExtension([{type: 'email', value: 'none@example.com'}]),
+    ],
   });
 
   const kp = new KeyCert('CN=Test', keys.privateKey, cert);
   assert.equal(await kp.verify(), false);
+  assert.throws(() => kp.san());
+
+  const kp2 = new KeyCert('CN=Test', undefined, cert);
+  assert.equal(kp2.keyPEM, '');
 });
