@@ -1,11 +1,15 @@
+import 'reflect-metadata'; // Needed for @peculiar/x509
+import * as x509 from '@peculiar/x509';
 import type {
-  AnyKey,
   CertOptions,
   CommonCertLogOptions,
   CommonCertOptions,
   CtoCertOptions,
   RequiredCertOptions,
   RequiredCommonCertOptions,
+  SAN,
+  SANdns,
+  SANip,
 } from './types.js';
 import {KEYCHAIN_SERVICE, KeyCert, SELF_SIGNED, type SecretEntry} from './cert.js';
 import {
@@ -20,20 +24,21 @@ import envPaths from 'env-paths';
 import filenamify from 'filenamify';
 import net from 'node:net';
 import path from 'node:path';
-import rs from 'jsrsasign';
 
 const CA_SUBJECT = '/C=US/ST=Colorado/L=Denver/O=@cto.af/CN=cto-af-Root-CA';
 const {config: ctoafConfig} = envPaths('@cto.af');
 const config = path.join(ctoafConfig, 'ca');
 
 export type {
-  AnyKey,
   CertOptions,
   CommonCertLogOptions,
   CommonCertOptions,
   CtoCertOptions,
   RequiredCertOptions as RequiredCtoCertOptions,
   RequiredCommonCertOptions,
+  SAN,
+  SANdns,
+  SANip,
   SecretEntry,
 };
 export {
@@ -78,9 +83,9 @@ export const DEFAULT_CERT_OPTIONS: RequiredCertOptions = {
   temp: false,
 };
 
-function altNames(hosts: string[]): jsrsasign.GeneralName[] {
+function altNames(hosts: string[]): x509.JsonGeneralNames {
   return hosts.map(h => (
-    net.isIP(h) ? {ip: h} : {dns: h}
+    net.isIP(h) ? {type: 'ip', value: h} : {type: 'dns', value: h}
   ));
 }
 
@@ -221,7 +226,7 @@ export class CertificateAuthority {
         }
       }
     }
-    const kc = this.#create(now);
+    const kc = await this.#create(now);
     await kc.write(this.#opts, this.#log);
 
     if ((process.platform === 'darwin') && !this.#opts.temp) {
@@ -270,15 +275,23 @@ export class CertificateAuthority {
       }
     }
 
-    const kc = this.issueNew(options, now);
+    const kc = await this.issueNew(options, now);
     await kc.write(opts, this.#log);
     return kc;
   }
 
-  public issueNew(
+  /**
+   * Unconditionally issue a new certificate, signed by this CA.
+   *
+   * @param options Cert options.
+   * @param now Defaults to current time.
+   * @returns New cert.
+   * @throws Only call issueNew directly for temp CAs.
+   */
+  public async issueNew(
     options: CommonCertOptions = {},
     now = new Date()
-  ): KeyCert {
+  ): Promise<KeyCert> {
     const [opts] = select(options, DEFAULT_COMMON_CERT_OPTIONS);
     const [host, hosts] = (typeof opts.host === 'string') ?
       [opts.host, [opts.host]] :
@@ -289,7 +302,7 @@ export class CertificateAuthority {
       if (!this.#opts.temp) {
         throw new TypeError('Only call issueNew directly for temp CAs');
       }
-      ca = this.#create(now);
+      ca = await this.#create(now);
     }
 
     this.#log.info('Creating cert for %o.', hosts);
@@ -297,34 +310,40 @@ export class CertificateAuthority {
     const recently = new Date(now.getTime() - 10000); // 10s ago.
     const nextWeek = daysFromNow(opts.notAfterDays, now);
 
-    const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
-    const prv = kp.prvKeyObj;
-    const pub = kp.pubKeyObj;
+    const kp = await crypto.subtle.generateKey({
+      name: 'ECDSA',
+      namedCurve: 'P-256',
+    }, true, ['sign', 'verify']);
+    const {privateKey, publicKey} = kp;
 
     if (!ca.key) {
       throw new Error('Key required');
     }
 
-    const x = new rs.KJUR.asn1.x509.Certificate({
-      version: 3,
-      serial: {int: now.getTime()},
-      issuer: {str: ca.subject},
-      notbefore: rs.datetozulu(recently, true, false),
-      notafter: rs.datetozulu(nextWeek, true, false),
-      subject: {str: `/CN=${host}`},
-      sbjpubkey: pub,
-      ext: [
-        {extname: 'basicConstraints', cA: false},
-        {extname: 'keyUsage', critical: true, names: ['digitalSignature']},
-        {extname: 'subjectAltName', array: altNames(hosts)},
-        {extname: 'authorityKeyIdentifier', kid: ca.cert},
-        {extname: 'subjectKeyIdentifier', kid: pub},
-        {extname: 'extKeyUsage', array: ['serverAuth', 'clientAuth']},
+    const x = await x509.X509CertificateGenerator.create({
+      serialNumber: now.getTime().toString(16),
+      issuer: ca.subject,
+      notBefore: recently,
+      notAfter: nextWeek,
+      subject: `/CN=${host}`,
+      publicKey,
+      extensions: [
+        new x509.BasicConstraintsExtension(false),
+        new x509.KeyUsagesExtension(x509.KeyUsageFlags.digitalSignature, true),
+        new x509.SubjectAlternativeNameExtension(altNames(hosts)),
+        await x509.AuthorityKeyIdentifierExtension.create(publicKey),
+        await x509.SubjectKeyIdentifierExtension.create(publicKey),
+        new x509.ExtendedKeyUsageExtension([
+          x509.ExtendedKeyUsage.serverAuth,
+          x509.ExtendedKeyUsage.clientAuth,
+        ]),
       ],
-      sigalg: 'SHA384withECDSA',
-      cakey: ca.key,
+      signingAlgorithm: {
+        name: 'ECDSA',
+      },
+      signingKey: ca.key,
     });
-    return new KeyCert(host, prv, x.getPEM(), ca);
+    return new KeyCert(host, privateKey, x, ca);
   }
 
   /**
@@ -385,35 +404,42 @@ export class CertificateAuthority {
    * @param now Current time.
    * @returns New CA KeyCert.
    */
-  #create(now = new Date()): KeyCert {
+  async #create(now = new Date()): Promise<KeyCert> {
     this.#log.info(`Creating new${this.#opts.temp ? ' temp' : ''} CA certificate`);
     // Create a self-signed CA cert
-    const kp = rs.KEYUTIL.generateKeypair('EC', 'secp256r1');
-    const prv = kp.prvKeyObj;
-    const pub = kp.pubKeyObj;
+    const keys = await crypto.subtle.generateKey(
+      {name: 'ECDSA', namedCurve: 'P-256'},
+      true,
+      ['sign', 'verify']
+    );
+    const {privateKey, publicKey} = keys;
 
     const recently = new Date(now.getTime() - 10000); // 10s ago.
     const oneYear = daysFromNow(this.#opts.notAfterDays, now);
 
-    const ca_cert = new rs.KJUR.asn1.x509.Certificate({
-      version: 3,
-      serial: {int: now.getTime()},
-      issuer: {str: this.#subject},
-      notbefore: rs.datetozulu(recently, false, false),
-      notafter: rs.datetozulu(oneYear, false, false),
-      subject: {str: this.#subject},
-      sbjpubkey: pub,
-      ext: [
-        {extname: 'basicConstraints', critical: true, cA: true, pathLen: 0},
-        {extname: 'keyUsage', critical: true, names: ['digitalSignature', 'keyCertSign', 'cRLSign']},
-        {extname: 'authorityKeyIdentifier', kid: pub},
-        {extname: 'subjectKeyIdentifier', kid: pub},
-        {extname: 'extKeyUsage', array: ['serverAuth', 'clientAuth']},
+    const ca_cert = await x509.X509CertificateGenerator.createSelfSigned({
+      serialNumber: now.getTime().toString(16),
+      notBefore: recently,
+      notAfter: oneYear,
+      name: this.#subject,
+      keys,
+      extensions: [
+        new x509.BasicConstraintsExtension(true, 0),
+        new x509.KeyUsagesExtension(
+          x509.KeyUsageFlags.digitalSignature |
+          x509.KeyUsageFlags.keyCertSign |
+          x509.KeyUsageFlags.cRLSign, true
+        ),
+        await x509.AuthorityKeyIdentifierExtension.create(publicKey),
+        await x509.SubjectKeyIdentifierExtension.create(publicKey),
+        new x509.ExtendedKeyUsageExtension([
+          x509.ExtendedKeyUsage.serverAuth,
+          x509.ExtendedKeyUsage.clientAuth,
+        ]),
       ],
-      sigalg: 'SHA256withECDSA',
-      cakey: prv,
+      signingAlgorithm: {name: 'ECDSA'},
     });
-    const kc = new KeyCert(this.#subject, prv, ca_cert, SELF_SIGNED);
+    const kc = new KeyCert(this.#subject, privateKey, ca_cert, SELF_SIGNED);
     this.#pair = kc;
     return kc;
   }

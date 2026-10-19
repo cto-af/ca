@@ -18,7 +18,7 @@ const rootDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cto-af-test-cert-'));
 const certDir = path.join(rootDir, 'certs');
 const caDir = path.join(rootDir, 'ca');
 const logFile = path.join(rootDir, 'cert.log');
-const ISSUER = '/CN=github.cto-af.ca';
+const ISSUER = 'CN=github.cto-af.ca';
 test.after(async () => {
   assert.deepEqual(await fs.readdir(certDir), [], `${certDir} not empty`);
   assert.deepEqual(await fs.readdir(caDir), [], `${caDir} not empty`);
@@ -51,20 +51,20 @@ test('createCert', async () => {
   await assert.rejects(() => createCert({...opts, host: []}));
 
   const kc = await createCert(opts);
-  const {key, cert, chain, notAfter, ca, issuer, subject, san} = kc;
+  const {key, keyPEM, cert, chain, notAfter, ca, issuer, subject, san} = kc;
   assert(key);
   assert(cert);
   assert(notAfter);
   assert(ca);
   assert(san);
-  assert.equal(chain, cert + ca.cert);
+  assert.equal(chain, `${cert}\n${ca.cert}`);
 
   assert.equal(ca.subject, ISSUER);
-  assert.equal(subject, '/CN=localhost');
+  assert.equal(subject, 'CN=localhost');
   assert.equal(issuer, ISSUER);
 
   const cached = await createCert(opts);
-  assert.equal(key, cached.key);
+  assert.equal(keyPEM, cached.keyPEM);
   assert.equal(cert, cached.cert);
   assert.deepEqual(notAfter, cached.notAfter);
   assert.deepEqual(ca.cert, cached.ca.cert);
@@ -184,14 +184,14 @@ test('new API', async () => {
   assert(kf);
   assert(cf);
 
-  await fs.writeFile(kf, cert.key);
+  await fs.writeFile(kf, cert.keyPEM);
   const e = new AsyncEntry(KEYCHAIN_SERVICE, kf);
   await e.deletePassword();
 
   const cert2 = await ca.issue(opts);
   assert.equal(cert2.serial, cert.serial);
 
-  await fs.writeFile(kf, cert.key);
+  await fs.writeFile(kf, cert.keyPEM);
   const cert3 = await ca.issue({...opts, force: true});
   assert.notEqual(cert3.serial, cert.serial);
 
@@ -215,7 +215,7 @@ test('new API', async () => {
   await fs.rmdir(kf);
 
   const cert4 = await ca.issue({...opts, force: true});
-  await fs.writeFile(kf, cert.key);
+  await fs.writeFile(kf, cert.keyPEM);
   await cert4.delete(opts, log);
 
   await ca.delete();
@@ -252,7 +252,7 @@ test('timing', async () => {
   await ca3.delete();
 });
 
-test('issueNew', () => {
+test('issueNew', async () => {
   const opts = {
     certDir,
     caDir,
@@ -263,8 +263,8 @@ test('issueNew', () => {
     temp: true,
   };
   const ca = new CertificateAuthority(opts);
-  assert.doesNotThrow(() => ca.issueNew());
+  await assert.doesNotReject(() => ca.issueNew());
 
   const ca2 = new CertificateAuthority({...opts, temp: false});
-  assert.throws(() => ca2.issueNew());
+  await assert.rejects(() => ca2.issueNew());
 });

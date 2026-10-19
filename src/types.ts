@@ -1,5 +1,4 @@
 import type {LogOptions} from '@cto.af/log';
-import type rs from 'jsrsasign';
 
 export interface CommonCertOptions {
   /**
@@ -90,10 +89,16 @@ export type RequiredCertOptions = Required<CtoCertOptions>;
 export type CertOptions = CtoCertOptions & LogOptions;
 export type CommonCertLogOptions = CommonCertOptions & LogOptions;
 
-export type AnyKey = rs.RSAKey | rs.KJUR.crypto.DSA | rs.KJUR.crypto.ECDSA;
-
 export interface KeyCertNames {
   certDir: string;
   keyName: string;
   certName: string;
 }
+
+export interface SANdns {
+  dns: string;
+}
+export interface SANip {
+  ip: string;
+}
+export type SAN = SANdns | SANip;
