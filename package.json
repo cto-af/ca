@@ -51,7 +51,6 @@
     "commander": "~15.0.0",
     "env-paths": "~4.0.0",
     "filenamify": "~7.0.3",
-    "jsrsasign": "~11.1.5",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {

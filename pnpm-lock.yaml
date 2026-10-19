@@ -187,9 +187,6 @@ importers:
       filenamify:
         specifier: ~7.0.3
         version: 7.0.3
-      jsrsasign:
-        specifier: ~11.1.5
-        version: 11.1.5
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -2681,10 +2678,6 @@ packages:
 
   json-stable-stringify-without-jsonify@1.0.1:
     resolution: {integrity: sha512-Bdboy+l7tA3OGW6FjyFHWkP5LuByj1Tk33Ljyq0axyzdk9//JSi2u3fP1QSmd1KNwq6VOKYGlAu87CisVir6Pw==}
-
-  jsrsasign@11.1.5:
-    resolution: {integrity: sha512-i6mAjey0/4UQmlOaNS2vROl8EkWV8Ei436reJAby2OPQ3lF6uXSs1VYpnM8hndmmCMFIzNc04Uw2GF+0JVLFbg==}
-    deprecated: This package is no longer maintained.
 
   just-camel-case@6.2.0:
     resolution: {integrity: sha512-ICenRLXwkQYLk3UyvLQZ+uKuwFVJ3JHFYFn7F2782G2Mv2hW8WPePqgdhpnjGaqkYtSVWnyCESZhGXUmY3/bEg==}
@@ -6264,8 +6257,6 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json-stable-stringify-without-jsonify@1.0.1: {}
-
-  jsrsasign@11.1.5: {}
 
   just-camel-case@6.2.0: {}
 
