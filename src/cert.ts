@@ -1,7 +1,10 @@
+import 'reflect-metadata';
+import * as x509 from '@peculiar/x509';
+import {type AsymmetricKeyDetails, KeyObject, createPrivateKey} from 'node:crypto';
 import type {
-  AnyKey,
   KeyCertNames,
   RequiredCommonCertOptions,
+  SAN,
 } from './types.js';
 import {type SecretEntry, deleteSecret, getSecret, listSecrets, setSecret} from './keychain.js';
 import type {Logger} from '@cto.af/log';
@@ -10,7 +13,6 @@ import {errCode} from '@cto.af/utils';
 import filenamify from 'filenamify';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import rs from 'jsrsasign';
 
 export const KEYCHAIN_SERVICE = 'com.github.cto-af.ca';
 export const SELF_SIGNED = Symbol('SELF_SIGNED');
@@ -19,33 +21,60 @@ export type {
   SecretEntry,
 };
 
+const curveConvert: {[key: string]: string} = {
+  prime256v1: 'P-256',
+  secp384r1: 'P-384',
+  secp521r1: 'P-521',
+};
+
+function privateKeyFromPEM(pem: string): CryptoKey {
+  const priv = createPrivateKey(pem);
+  assert.equal(priv.asymmetricKeyType, 'ec', 'Only supports ECDSA private keys');
+  let {namedCurve} = priv.asymmetricKeyDetails as AsymmetricKeyDetails;
+  assert(namedCurve);
+  namedCurve = curveConvert[namedCurve];
+  assert(namedCurve);
+  return priv.toCryptoKey(
+    {name: 'ECDSA', namedCurve},
+    true,
+    ['sign']
+  ) as CryptoKey;
+}
+
+function privateKeyToPEM(key: CryptoKey): string {
+  const nk = KeyObject.from(key);
+  return nk.export({
+    format: 'pem',
+    type: 'pkcs8',
+  });
+}
+
 /**
  * A certificate and its private key.
  */
 export class KeyCert {
   public readonly ca: KeyCert | undefined;
   public readonly cert: string;
-  public readonly key: string | undefined = undefined;
+  public readonly key: CryptoKey | undefined = undefined;
   public readonly name: string;
   #keyFile: string | undefined = undefined;
   #certFile: string | undefined = undefined;
-  #x509: rs.X509;
+  #x509: x509.X509Certificate;
 
   public constructor(
     name: string,
-    key: AnyKey | string | undefined,
-    cert: rs.KJUR.asn1.x509.Certificate | string,
+    key: CryptoKey | string | undefined,
+    cert: x509.X509Certificate | string,
     ca?: KeyCert | typeof SELF_SIGNED
   ) {
     this.name = name;
     if (key) {
       this.key = (typeof key === 'string') ?
-        key :
-        rs.KEYUTIL.getPEM(key, 'PKCS8PRV');
+        privateKeyFromPEM(key) :
+        key;
     }
-    this.cert = (typeof cert === 'string') ? cert : cert.getPEM();
-    this.#x509 = new rs.X509();
-    this.#x509.readCertPEM(this.cert);
+    this.cert = (typeof cert === 'string') ? cert : cert.toString('pem');
+    this.#x509 = (typeof cert === 'string') ? new x509.X509Certificate(cert) : cert;
     this.ca = (ca === SELF_SIGNED) ? this : ca;
   }
 
@@ -55,7 +84,8 @@ export class KeyCert {
    */
   public get chain(): string {
     let ret = this.cert;
-    if (this.ca) {
+    if (this.ca && (this.ca !== this)) {
+      ret += '\n';
       ret += this.ca.cert;
     }
     return ret;
@@ -74,6 +104,16 @@ export class KeyCert {
   }
 
   /**
+   * Encode the private key as a PEM string, if it is set.
+   * Otherwise returns the empty string.
+   *
+   * @returns Empty string on PEM-encoded key.
+   */
+  public get keyPEM(): string {
+    return this.key ? privateKeyToPEM(this.key) : '';
+  }
+
+  /**
    * The file name of the certificate.  The file is encoded as PEM.
    *
    * @returns The filename, or undefined if unknown.
@@ -88,7 +128,7 @@ export class KeyCert {
    * @returns A string of the form '/C=US'.
    */
   public get issuer(): string {
-    return this.#x509.getIssuerString();
+    return this.#x509.issuer;
   }
 
   /**
@@ -97,7 +137,7 @@ export class KeyCert {
    * @returns Date constructed from X509.
    */
   public get notAfter(): Date {
-    return rs.zulutodate(this.#x509.getNotAfter());
+    return this.#x509.notAfter;
   }
 
   /**
@@ -106,7 +146,7 @@ export class KeyCert {
    * @returns Date constructed from X509.
    */
   public get notBefore(): Date {
-    return rs.zulutodate(this.#x509.getNotBefore());
+    return this.#x509.notBefore;
   }
 
   /**
@@ -114,8 +154,25 @@ export class KeyCert {
    *
    * @returns Array of {dns: 'hostname'} or {ip: 'address'} objects.
    */
-  public get san(): rs.GeneralName[] | undefined {
-    return this.#x509.getExtSubjectAltName()?.array;
+  public get san(): SAN[] {
+    const san = this.#x509.extensions.find(
+      e => e instanceof x509.SubjectAlternativeNameExtension
+    );
+    if (!san) {
+      return [];
+    }
+    return san.names.items.map(s => {
+      switch (s.type) {
+        case 'dns': {
+          return {dns: s.value};
+        }
+        case 'ip': {
+          return {ip: s.value};
+        }
+        default:
+          throw new Error(`Unsupported SAN type: ${s.type}`);
+      }
+    });
   }
 
   /**
@@ -124,7 +181,7 @@ export class KeyCert {
    * @returns Hex string.
    */
   public get serial(): string {
-    return this.#x509.getSerialNumberHex();
+    return this.#x509.serialNumber;
   }
 
   /**
@@ -133,7 +190,7 @@ export class KeyCert {
    * @returns String of the form '/CN=localhost'.
    */
   public get subject(): string {
-    return this.#x509.getSubjectString();
+    return this.#x509.subject;
   }
 
   /**
@@ -269,7 +326,8 @@ export class KeyCert {
     }
     await fs.mkdir(names.certDir, {recursive: true});
     if (this.key) {
-      await setSecret(log, KEYCHAIN_SERVICE, names.keyName, this.key);
+      const pem = privateKeyToPEM(this.key);
+      await setSecret(log, KEYCHAIN_SERVICE, names.keyName, pem);
     }
     await fs.writeFile(names.certName, this.cert, 'utf8');
   }
@@ -279,10 +337,12 @@ export class KeyCert {
    *
    * @returns True if valid.
    */
-  public verify(): boolean {
+  public verify(): Promise<boolean> {
     if (!this.ca) {
-      return false;
+      return Promise.resolve(false);
     }
-    return this.#x509.verifySignature(this.ca.#x509.getPublicKey());
+    return this.#x509.verify({
+      publicKey: this.ca.#x509.publicKey,
+    });
   }
 }
