@@ -108,7 +108,7 @@ export class KeyCert {
    * the empty string.
    *
    * @returns Undefined when no key, or the PEM-encoded version when there is
-   * a key.
+   *   a key.
    */
   public get key(): string | undefined {
     return this.sublteKey ? privateKeyToPEM(this.sublteKey) : undefined;
