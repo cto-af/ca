@@ -28,5 +28,5 @@ test('No CA', async () => {
   assert.throws(() => kp.san());
 
   const kp2 = new KeyCert('CN=Test', undefined, cert);
-  assert.equal(kp2.keyPEM, '');
+  assert.equal(kp2.key, undefined);
 });

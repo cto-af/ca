@@ -55,7 +55,7 @@ function privateKeyToPEM(key: CryptoKey): string {
 export class KeyCert {
   public readonly ca: KeyCert | undefined;
   public readonly cert: string;
-  public readonly key: CryptoKey | undefined = undefined;
+  public readonly sublteKey: CryptoKey | undefined = undefined;
   public readonly name: string;
   #keyFile: string | undefined = undefined;
   #certFile: string | undefined = undefined;
@@ -69,7 +69,7 @@ export class KeyCert {
   ) {
     this.name = name;
     if (key) {
-      this.key = (typeof key === 'string') ?
+      this.sublteKey = (typeof key === 'string') ?
         privateKeyFromPEM(key) :
         key;
     }
@@ -104,13 +104,14 @@ export class KeyCert {
   }
 
   /**
-   * Encode the private key as a PEM string, if it is set.
-   * Otherwise returns the empty string.
+   * Encode the private key as a PEM string, if it is set. Otherwise returns
+   * the empty string.
    *
-   * @returns Empty string on PEM-encoded key.
+   * @returns Undefined when no key, or the PEM-encoded version when there is
+   * a key.
    */
-  public get keyPEM(): string {
-    return this.key ? privateKeyToPEM(this.key) : '';
+  public get key(): string | undefined {
+    return this.sublteKey ? privateKeyToPEM(this.sublteKey) : undefined;
   }
 
   /**
@@ -325,8 +326,8 @@ export class KeyCert {
       return;
     }
     await fs.mkdir(names.certDir, {recursive: true});
-    if (this.key) {
-      const pem = privateKeyToPEM(this.key);
+    if (this.sublteKey) {
+      const pem = privateKeyToPEM(this.sublteKey);
       await setSecret(log, KEYCHAIN_SERVICE, names.keyName, pem);
     }
     await fs.writeFile(names.certName, this.cert, 'utf8');

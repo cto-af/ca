@@ -51,7 +51,8 @@ test('createCert', async () => {
   await assert.rejects(() => createCert({...opts, host: []}));
 
   const kc = await createCert(opts);
-  const {key, keyPEM, cert, chain, notAfter, ca, issuer, subject, san} = kc;
+  const {sublteKey, key, cert, chain, notAfter, ca, issuer, subject, san} = kc;
+  assert(sublteKey);
   assert(key);
   assert(cert);
   assert(notAfter);
@@ -64,7 +65,7 @@ test('createCert', async () => {
   assert.equal(issuer, ISSUER);
 
   const cached = await createCert(opts);
-  assert.equal(keyPEM, cached.keyPEM);
+  assert.equal(key, cached.key);
   assert.equal(cert, cached.cert);
   assert.deepEqual(notAfter, cached.notAfter);
   assert.deepEqual(ca.cert, cached.ca.cert);
@@ -184,14 +185,14 @@ test('new API', async () => {
   assert(kf);
   assert(cf);
 
-  await fs.writeFile(kf, cert.keyPEM);
+  await fs.writeFile(kf, cert.key);
   const e = new AsyncEntry(KEYCHAIN_SERVICE, kf);
   await e.deletePassword();
 
   const cert2 = await ca.issue(opts);
   assert.equal(cert2.serial, cert.serial);
 
-  await fs.writeFile(kf, cert.keyPEM);
+  await fs.writeFile(kf, cert.key);
   const cert3 = await ca.issue({...opts, force: true});
   assert.notEqual(cert3.serial, cert.serial);
 
@@ -215,7 +216,7 @@ test('new API', async () => {
   await fs.rmdir(kf);
 
   const cert4 = await ca.issue({...opts, force: true});
-  await fs.writeFile(kf, cert.keyPEM);
+  await fs.writeFile(kf, cert.key);
   await cert4.delete(opts, log);
 
   await ca.delete();
