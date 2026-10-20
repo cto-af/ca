@@ -316,7 +316,7 @@ export class CertificateAuthority {
     }, true, ['sign', 'verify']);
     const {privateKey, publicKey} = kp;
 
-    if (!ca.key) {
+    if (!ca.sublteKey) {
       throw new Error('Key required');
     }
 
@@ -347,7 +347,7 @@ export class CertificateAuthority {
       signingAlgorithm: {
         name: 'ECDSA',
       },
-      signingKey: ca.key,
+      signingKey: ca.sublteKey,
     });
     return new KeyCert(host, privateKey, x, ca);
   }
