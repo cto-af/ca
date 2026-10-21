@@ -151,6 +151,13 @@ export class KeyCert {
   }
 
   /**
+   * Get the public key, in parsed form.
+   */
+  public get publicKey(): x509.PublicKey {
+    return this.#x509.publicKey;
+  }
+
+  /**
    * List of subjectAlternativeNames for the cert.
    *
    * @returns Array of {dns: 'hostname'} or {ip: 'address'} objects.
@@ -343,7 +350,7 @@ export class KeyCert {
       return Promise.resolve(false);
     }
     return this.#x509.verify({
-      publicKey: this.ca.#x509.publicKey,
+      publicKey: this.ca.publicKey,
     });
   }
 }

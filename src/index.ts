@@ -25,7 +25,7 @@ import filenamify from 'filenamify';
 import net from 'node:net';
 import path from 'node:path';
 
-const CA_SUBJECT = '/C=US/ST=Colorado/L=Denver/O=@cto.af/CN=cto-af-Root-CA';
+const CA_SUBJECT = 'C=US, ST=Colorado, L=Denver, O=@cto.af, CN=cto-af-Root-CA';
 const {config: ctoafConfig} = envPaths('@cto.af');
 const config = path.join(ctoafConfig, 'ca');
 
@@ -323,7 +323,7 @@ export class CertificateAuthority {
     const extensions: x509.Extension[] = [
       new x509.BasicConstraintsExtension(false),
       new x509.KeyUsagesExtension(x509.KeyUsageFlags.digitalSignature, true),
-      await x509.AuthorityKeyIdentifierExtension.create(publicKey),
+      await x509.AuthorityKeyIdentifierExtension.create(ca.publicKey),
       await x509.SubjectKeyIdentifierExtension.create(publicKey),
       new x509.ExtendedKeyUsageExtension([
         x509.ExtendedKeyUsage.serverAuth,
@@ -341,7 +341,7 @@ export class CertificateAuthority {
       issuer: ca.subject,
       notBefore: recently,
       notAfter: nextWeek,
-      subject: `/CN=${host}`,
+      subject: `CN=${host}`,
       publicKey,
       extensions,
       signingAlgorithm: {
