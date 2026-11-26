@@ -53,7 +53,7 @@ const fetchResult = await whileCAtrusted(
 
 A rudimentary CLI is provided.
 
-```
+```txt
 Usage: cto-af-ca [options] [command]
 
 Options:

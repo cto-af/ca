@@ -47,25 +47,26 @@
     "@cto.af/log": "~2.0.2",
     "@cto.af/utils": "~2.0.1",
     "@napi-rs/keyring": "~2.1.2",
-    "@peculiar/x509": "^2.1.0",
-    "commander": "~15.0.0",
+    "@peculiar/x509": "^3.1.0",
+    "commander": "~15.1.0",
     "env-paths": "~4.0.0",
     "filenamify": "~7.0.3",
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
-    "@cto.af/eslint-config": "^7.0.3",
-    "@eslint/markdown": "^8.0.3",
-    "@types/node": "^26.6.5",
+    "@cto.af/eslint-config": "^7.0.6",
+    "@cto.af/ncurc": "^0.0.3",
+    "@eslint/markdown": "^9.0.0",
+    "@types/node": "^26.6.6",
     "@typescript/native": "npm:typescript@^7.0.2",
-    "eslint": "^10.12.0",
-    "eslint-plugin-jsdoc": "^65.3.4",
+    "eslint": "^10.15.0",
+    "eslint-plugin-jsdoc": "^65.4.12",
     "superc8": "^12.7.0",
     "typedoc": "^0.28.20",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-eslint": "^8.71.2"
+    "typescript-eslint": "^8.73.0"
   },
-  "packageManager": "pnpm@12.13.0",
+  "packageManager": "pnpm@12.22.0",
   "engines": {
     "node": ">=22"
   }
