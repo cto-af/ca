@@ -214,7 +214,10 @@ export class CertificateAuthority {
     const ca_file = filenamify(this.#subject);
     if (!this.#opts.force && !this.#opts.temp) {
       this.#pair = await KeyCert.read(
-        this.#opts, ca_file, this.#log, SELF_SIGNED
+        this.#opts,
+        ca_file,
+        this.#log,
+        SELF_SIGNED
       );
       if (this.#pair) {
         const na = this.#pair.notAfter;
@@ -434,7 +437,8 @@ export class CertificateAuthority {
         new x509.KeyUsagesExtension(
           x509.KeyUsageFlags.digitalSignature |
           x509.KeyUsageFlags.keyCertSign |
-          x509.KeyUsageFlags.cRLSign, true
+          x509.KeyUsageFlags.cRLSign,
+          true
         ),
         await x509.AuthorityKeyIdentifierExtension.create(publicKey),
         await x509.SubjectKeyIdentifierExtension.create(publicKey),
